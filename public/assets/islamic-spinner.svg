@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200px" height="200px" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>Islamic Loading Spinner</title>
+    <g>
+        <g transform="translate(100, 100)">
+            <!-- 8-point star pattern -->
+            <g>
+                <animateTransform attributeName="transform" 
+                    type="rotate" 
+                    values="0;45;90;135;180;225;270;315;360" 
+                    dur="2s" 
+                    repeatCount="indefinite" 
+                    calcMode="discrete"/>
+                
+                <path d="M0,-70 L15,-20 L70,0 L15,20 L0,70 L-15,20 L-70,0 L-15,-20 Z" 
+                    fill="none" 
+                    stroke="#1e6f8e" 
+                    stroke-width="2" 
+                    opacity="0.7">
+                </path>
+            </g>
+            
+            <!-- Inner circle -->
+            <circle cx="0" cy="0" r="30" 
+                fill="none" 
+                stroke="#4caf50" 
+                stroke-width="3" 
+                stroke-dasharray="188.5 188.5" 
+                opacity="0.9">
+                <animateTransform attributeName="transform" 
+                    type="rotate" 
+                    values="0;360" 
+                    dur="2s" 
+                    repeatCount="indefinite" 
+                    calcMode="linear"/>
+            </circle>
+            
+            <!-- Center dot -->
+            <circle cx="0" cy="0" r="5" fill="#1e6f8e"></circle>
+        </g>
+    </g>
+</svg>

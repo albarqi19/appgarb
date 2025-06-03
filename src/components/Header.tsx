@@ -1,0 +1,294 @@
+import React, { useState } from 'react';
+import { 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Button, 
+  IconButton, 
+  Box, 
+  Drawer, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Divider,
+  Avatar,
+  useMediaQuery,
+  useTheme,
+  Badge,
+  Tooltip,
+  Container
+} from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import MenuIcon from '@mui/icons-material/Menu';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import MosqueIcon from '@mui/icons-material/Mosque';
+import PeopleIcon from '@mui/icons-material/People';
+import PersonIcon from '@mui/icons-material/Person';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import { aiRecommendations } from '../data/ai-insights';
+
+const Header: React.FC = () => {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { currentMosque } = useAppContext();
+
+  const handleDrawerToggle = () => {
+    setDrawerOpen(!drawerOpen);
+  };
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    if (isMobile) {
+      setDrawerOpen(false);
+    }
+  };
+  // قائمة العناصر في القائمة الجانبية
+  const drawerItems = [
+    { text: 'لوحة التحكم', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'المدارس القرآنية', icon: <MosqueIcon />, path: '/' },
+    { text: 'القرآن الكريم', icon: <MenuBookIcon />, path: '/quran' },
+    { text: 'قائمة الطلاب', icon: <PeopleIcon />, path: '/students', disabled: !currentMosque }
+  ];
+
+  const drawer = (
+    <Box sx={{ width: 280 }}>
+      <Box 
+        sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          background: 'linear-gradient(180deg, rgba(30, 111, 142, 0.05) 0%, rgba(30, 111, 142, 0.02) 100%)'
+        }}
+      >
+        <Avatar 
+          sx={{ 
+            width: 75, 
+            height: 75, 
+            bgcolor: 'primary.main', 
+            mb: 2,
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+          }}
+        >
+          <MenuBookIcon sx={{ fontSize: 40 }} />
+        </Avatar>
+        <Typography variant="h5" color="primary.dark" fontWeight="bold" sx={{ mb: 0.5 }}>
+          منصة غرب
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          لإدارة حلقات القرآن الكريم
+        </Typography>
+      </Box>
+      <Divider />
+      <List sx={{ p: 2 }}>
+        {drawerItems.map((item) => (
+          <ListItem
+            component="div"
+            key={item.text}
+            onClick={() => handleNavigation(item.path)}
+            disabled={item.disabled}
+            selected={location.pathname === item.path}
+            sx={{
+              mb: 1,
+              borderRadius: 2,
+              '&.Mui-selected': {
+                backgroundColor: 'primary.main',
+                color: 'primary.contrastText',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                '& .MuiListItemIcon-root': {
+                  color: 'primary.contrastText',
+                },
+              },
+              '&:hover': {
+                backgroundColor: item.disabled ? '' : 'rgba(30, 111, 142, 0.1)'
+              },
+              cursor: item.disabled ? 'default' : 'pointer'
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              {item.icon}
+            </ListItemIcon>
+            <ListItemText 
+              primary={item.text} 
+              primaryTypographyProps={{ fontWeight: location.pathname === item.path ? 'bold' : 'normal' }} 
+            />
+          </ListItem>
+        ))}
+      </List>
+      <Divider />
+      <Box sx={{ p: 3 }}>
+        <Button 
+          variant="contained" 
+          color="secondary"
+          fullWidth 
+          startIcon={<ExitToAppIcon />}
+          onClick={() => console.log('تسجيل الخروج - للعرض فقط')}
+          sx={{ borderRadius: 2, py: 1 }}
+        >
+          تسجيل الخروج
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <React.Fragment>
+      <AppBar 
+        position="fixed" 
+        elevation={0}
+        sx={{ 
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          bgcolor: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        }}
+      >
+        <Container maxWidth="xl">
+          <Toolbar disableGutters>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              aria-label="قائمة"
+              sx={{ mr: 2, color: 'primary.main' }}
+            >
+              <MenuIcon />
+            </IconButton>
+            
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                cursor: 'pointer',
+                flexGrow: { xs: 1, md: 0 } 
+              }}
+              onClick={() => navigate('/')}
+            >
+              <Avatar 
+                sx={{ 
+                  width: 38, 
+                  height: 38, 
+                  bgcolor: 'primary.main', 
+                  mr: 1,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+              >
+                <MenuBookIcon sx={{ fontSize: 20 }} />
+              </Avatar>
+              <Typography 
+                variant="h6" 
+                component="div" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: 'primary.dark',
+                  display: { xs: 'none', sm: 'block' }
+                }}
+              >
+                منصة غرب
+              </Typography>
+            </Box>
+            
+            {/* روابط التنقل للشاشات المتوسطة والكبيرة */}
+            <Box 
+              sx={{ 
+                flexGrow: 1, 
+                display: { xs: 'none', md: 'flex' },
+                px: 3,
+                justifyContent: 'center'
+              }}
+            >
+              {drawerItems.map((item) => (
+                <Button
+                  key={item.text}
+                  onClick={() => handleNavigation(item.path)}
+                  disabled={item.disabled}
+                  startIcon={item.icon}
+                  color={location.pathname === item.path ? 'primary' : 'inherit'}
+                  variant={location.pathname === item.path ? 'contained' : 'text'}
+                  sx={{ 
+                    mx: 1, 
+                    borderRadius: 2,
+                    fontWeight: location.pathname === item.path ? 'bold' : 'normal',
+                    boxShadow: location.pathname === item.path ? 2 : 0
+                  }}
+                >
+                  {item.text}
+                </Button>
+              ))}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Tooltip title="الإشعارات">
+                <IconButton 
+                  sx={{ 
+                    mx: 0.5,
+                    bgcolor: 'background.default',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                    '&:hover': { bgcolor: 'background.paper' }
+                  }}
+                >
+                  <Badge 
+                    badgeContent={aiRecommendations.length} 
+                    color="error"
+                  >
+                    <NotificationsIcon color="primary" />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+              
+              <Tooltip title="توصيات الذكاء الاصطناعي">
+                <IconButton 
+                  onClick={() => navigate('/dashboard')}
+                  sx={{ 
+                    mx: 0.5,
+                    bgcolor: 'background.default',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                    '&:hover': { bgcolor: 'background.paper' }
+                  }}
+                >
+                  <LightbulbIcon color="warning" />
+                </IconButton>
+              </Tooltip>
+
+              <Box sx={{ display: { xs: 'none', sm: 'block' }, ml: 2 }}>
+                <Button 
+                  color="primary" 
+                  variant="outlined"
+                  startIcon={<PersonIcon />}
+                  sx={{ borderRadius: 2 }}
+                >
+                  المعلم
+                </Button>
+              </Box>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true, // لأداء أفضل على الأجهزة المحمولة
+        }}
+        PaperProps={{
+          sx: {
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+          }
+        }}
+      >
+        {drawer}
+      </Drawer>
+    </React.Fragment>
+  );
+};
+
+export default Header;

@@ -1,13 +1,72 @@
+/* تعديل الأنماط الرئيسية لتطبيق منصة غرب */
+:root {
+  --main-bg-color: #f5f9fc;
+  --primary-color: #1e6f8e;
+  --primary-light: #4a9fbe;
+  --primary-dark: #004560;
+  --secondary-color: #4caf50;
+  --secondary-light: #80e27e;
+  --secondary-dark: #087f23;
+  --text-primary: #37474f;
+  --text-secondary: #546e7a;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --border-radius: 12px;
+  --transition-main: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--main-bg-color);
+  direction: rtl;
+  color: var(--text-primary);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* تطبيق أنماط إضافية للنصوص العربية */
+h1, h2, h3, h4, h5, h6, p, a, span, button, div {
+  letter-spacing: 0 !important;
+}
+
+/* التركيز والتحديد */
+:focus {
+  outline-color: var(--primary-color);
+}
+
+/* تأثيرات الانتقال */
+.MuiButton-root,
+.MuiCard-root,
+.MuiPaper-root,
+.MuiListItem-root {
+  transition: var(--transition-main) !important;
+}
+
+/* تخصيص التمرير */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 111, 142, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1e88e5;
 }

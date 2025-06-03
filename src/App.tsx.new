@@ -1,0 +1,85 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, CssBaseline, Box, Toolbar, Container, Typography } from '@mui/material';
+import { AppProvider } from './context/AppContext';
+import Header from './components/Header';
+import MosqueSelection from './pages/MosqueSelection';
+import StudentsList from './pages/StudentsList';
+import StudentDetails from './pages/StudentDetails';
+import MemorizationOptions from './pages/MemorizationOptions';
+import MemorizationSession from './pages/MemorizationSession';
+import Dashboard from './pages/Dashboard';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
+import { prefixer } from 'stylis';
+import rtlPlugin from 'stylis-plugin-rtl';
+import '@fontsource/ibm-plex-sans-arabic/300.css';
+import '@fontsource/ibm-plex-sans-arabic/400.css';
+import '@fontsource/ibm-plex-sans-arabic/500.css';
+import '@fontsource/ibm-plex-sans-arabic/700.css';
+import './App.css';
+import theme from './theme/theme';
+
+// إنشاء مخبأ للاتجاه من اليمين إلى اليسار
+const cacheRtl = createCache({
+  key: 'muirtl',
+  stylisPlugins: [prefixer, rtlPlugin],
+});
+
+function App() {
+  return (
+    <CacheProvider value={cacheRtl}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AppProvider>
+          <Router>
+            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+              <Header />
+              <Box 
+                component="main" 
+                sx={{ 
+                  flexGrow: 1,
+                  pt: 4,
+                  pb: 4,
+                  backgroundImage: 'linear-gradient(rgba(245, 249, 252, 0.9), rgba(245, 249, 252, 0.9)), url("/assets/subtle-pattern.png")',
+                  backgroundAttachment: 'fixed',
+                  backgroundSize: '400px'
+                }}
+              >
+                <Toolbar /> {/* لإضافة مسافة تحت شريط التنقل */}
+                <Container maxWidth={false}>
+                  <Routes>
+                    <Route path="/" element={<MosqueSelection />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/students" element={<StudentsList />} />
+                    <Route path="/students/:studentId" element={<StudentDetails />} />
+                    <Route path="/memorization-options" element={<MemorizationOptions />} />
+                    <Route path="/memorization-session" element={<MemorizationSession />} />
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
+                </Container>
+              </Box>
+              {/* Footer */}
+              <Box 
+                component="footer" 
+                sx={{ 
+                  py: 3, 
+                  textAlign: 'center', 
+                  borderTop: '1px solid rgba(0,0,0,0.08)',
+                  bgcolor: 'rgba(255,255,255,0.7)',
+                  mt: 'auto' 
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  منصة غرب | نظام إدارة حلقات القرآن الكريم
+                </Typography>
+              </Box>
+            </Box>
+          </Router>
+        </AppProvider>
+      </ThemeProvider>
+    </CacheProvider>
+  );
+}
+
+export default App;

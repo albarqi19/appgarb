@@ -1,0 +1,455 @@
+import React, { useState } from 'react';
+import {
+  Paper,
+  Typography,
+  Box,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Card,
+  CardContent,
+  Grid,
+  Chip,
+  IconButton,
+  Collapse,
+  Avatar,
+  LinearProgress,
+  Badge
+} from '@mui/material';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import SchoolIcon from '@mui/icons-material/School';
+import RecommendIcon from '@mui/icons-material/Recommend';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import StarIcon from '@mui/icons-material/Star';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { aiRecommendations } from '../data/ai-insights';
+import { surahs } from '../data/quran';
+
+// إضافة بيانات وهمية للتوصيات
+const enhancedSurahs = surahs.map(surah => ({
+  ...surah,
+  relevance: Math.random() * 100
+})).sort((a, b) => (b.relevance || 0) - (a.relevance || 0)).slice(0, 5);
+
+const AIRecommendationsPanel: React.FC = () => {
+  const [expanded, setExpanded] = useState<{[key: string]: boolean}>({
+    general: true,
+    surahs: false,
+    methods: false
+  });
+
+  const toggleExpand = (section: string) => {
+    setExpanded(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // تصفية التوصيات حسب النوع
+  const generalRecommendations = aiRecommendations.filter(rec => rec.type === 'general');
+  const studentRecommendations = aiRecommendations.filter(rec => rec.type === 'student');
+  const memorizationRecommendations = aiRecommendations.filter(rec => rec.type === 'memorization');
+
+  // حساب نسبة الثقة
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 90) return 'success';
+    if (confidence >= 75) return 'primary';
+    if (confidence >= 60) return 'info';
+    return 'warning';
+  };
+
+  return (
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        borderRadius: 3,
+        overflow: 'hidden',
+        border: '1px solid',
+        borderColor: 'divider',
+        background: 'linear-gradient(145deg, #ffffff 0%, #f9fcff 100%)'
+      }}
+    >
+      <Box
+        sx={{
+          p: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'linear-gradient(45deg, rgba(30, 111, 142, 0.1), rgba(30, 111, 142, 0.05))',
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Avatar
+            sx={{
+              bgcolor: 'primary.main',
+              mr: 2,
+              boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+            }}
+          >
+            <PsychologyIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h5" fontWeight="bold" color="primary.dark">
+              توصيات الذكاء الاصطناعي
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              تحليلات وتوصيات لتحسين الأداء وتطوير الحلقات
+            </Typography>
+          </Box>
+        </Box>
+        <Badge badgeContent={aiRecommendations.length} color="error" sx={{ mr: 1 }}>
+          <LightbulbIcon color="warning" sx={{ fontSize: 30 }} />
+        </Badge>
+      </Box>
+
+      {/* التوصيات العامة */}
+      <Box sx={{ p: 3 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 2,
+          }}
+          onClick={() => toggleExpand('general')}
+          style={{ cursor: 'pointer' }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'primary.light',
+                mr: 1.5,
+                width: 36,
+                height: 36
+              }}
+            >
+              <RecommendIcon fontSize="small" />
+            </Avatar>
+            <Typography variant="h6" fontWeight="bold">
+              توصيات عامة
+            </Typography>
+          </Box>
+          <IconButton size="small">
+            {expanded.general ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
+
+        <Collapse in={expanded.general}>
+          <List sx={{ 
+            mt: 1,
+            bgcolor: 'background.paper', 
+            borderRadius: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+          }}>
+            {generalRecommendations.map((recommendation, index) => (
+              <React.Fragment key={index}>
+                {index > 0 && <Divider variant="inset" component="li" />}
+                <ListItem 
+                  alignItems="flex-start" 
+                  sx={{ 
+                    py: 1.5,
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }
+                  }}
+                >
+                  <ListItemIcon>
+                    <Box sx={{ position: 'relative', mt: 0.5 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: `${getConfidenceColor(recommendation.confidence)}.light`,
+                          width: 32,
+                          height: 32
+                        }}
+                      >
+                        <LightbulbIcon fontSize="small" />
+                      </Avatar>
+                      <Chip 
+                        label={`${Math.round(recommendation.confidence)}%`}
+                        color={getConfidenceColor(recommendation.confidence)}
+                        size="small"
+                        sx={{ 
+                          position: 'absolute',
+                          top: -10,
+                          right: -15,
+                          height: 20,
+                          fontSize: '0.7rem'
+                        }}
+                      />
+                    </Box>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body1" fontWeight="medium" gutterBottom>
+                        {recommendation.title}
+                      </Typography>
+                    }
+                    secondary={
+                      <>
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ display: 'inline', mb: 1 }}
+                        >
+                          {recommendation.description}
+                        </Typography>
+                        <Box sx={{ display: 'flex', mt: 1 }}>
+                          {recommendation.tags.map((tag, tagIndex) => (
+                            <Chip
+                              key={tagIndex}
+                              label={tag}
+                              size="small"
+                              variant="outlined"
+                              sx={{ mr: 0.5, fontSize: '0.75rem' }}
+                            />
+                          ))}
+                        </Box>
+                      </>
+                    }
+                  />
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+        </Collapse>
+      </Box>
+
+      <Divider />
+
+      {/* السور الموصى بها */}
+      <Box sx={{ p: 3 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 2,
+          }}
+          onClick={() => toggleExpand('surahs')}
+          style={{ cursor: 'pointer' }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'secondary.light',
+                mr: 1.5,
+                width: 36,
+                height: 36
+              }}
+            >
+              <MenuBookIcon fontSize="small" />
+            </Avatar>
+            <Typography variant="h6" fontWeight="bold">
+              السور الموصى بها للحفظ
+            </Typography>
+          </Box>
+          <IconButton size="small">
+            {expanded.surahs ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
+
+        <Collapse in={expanded.surahs}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            {enhancedSurahs.map(surah => (
+              <Grid item xs={6} sm={4} key={surah.id}>
+                <Card 
+                  variant="outlined" 
+                  sx={{ 
+                    height: '100%',
+                    borderRadius: 2,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                >
+                  <Box sx={{ position: 'relative' }}>
+                    <Box 
+                      sx={{ 
+                        bgcolor: 'secondary.light',
+                        pt: 2,
+                        pb: 3,
+                        px: 2,
+                        borderTopLeftRadius: 8,
+                        borderTopRightRadius: 8,
+                        color: 'white',
+                        textAlign: 'center',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,                          width: '100%',
+                          height: '100%',
+                          opacity: 0.1,
+                          backgroundImage: 'url(/assets/quran-pattern.svg)',
+                          backgroundSize: 'cover'
+                        }}
+                      />
+                      <Typography variant="h6" fontWeight="bold" sx={{ position: 'relative', zIndex: 1 }}>
+                        {surah.arabicName}
+                      </Typography>
+                      <Typography variant="caption" sx={{ position: 'relative', zIndex: 1 }}>
+                        {surah.englishName}
+                      </Typography>
+                      <Box 
+                        sx={{ 
+                          position: 'absolute',
+                          bottom: -10,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 36,
+                          height: 36,
+                          bgcolor: 'background.paper',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                          zIndex: 5
+                        }}
+                      >
+                        <StarIcon fontSize="small" color="secondary" />
+                      </Box>
+                    </Box>
+                  </Box>
+                  <CardContent sx={{ textAlign: 'center', pt: 2 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      عدد الآيات: {surah.totalAyahs}
+                    </Typography>
+                    <Box sx={{ width: '100%', mt: 1, mb: 0.5 }}>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={surah.relevance || 0} 
+                        sx={{ 
+                          height: 6, 
+                          borderRadius: 3,
+                          bgcolor: 'rgba(0,0,0,0.04)'
+                        }} 
+                        color="secondary"
+                      />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      نسبة الملاءمة: {Math.round(surah.relevance || 0)}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Collapse>
+      </Box>
+
+      <Divider />
+
+      {/* أساليب مقترحة */}
+      <Box sx={{ p: 3 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 2,
+          }}
+          onClick={() => toggleExpand('methods')}
+          style={{ cursor: 'pointer' }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'info.light',
+                mr: 1.5,
+                width: 36,
+                height: 36
+              }}
+            >
+              <SchoolIcon fontSize="small" />
+            </Avatar>
+            <Typography variant="h6" fontWeight="bold">
+              أساليب تعليمية مقترحة
+            </Typography>
+          </Box>
+          <IconButton size="small">
+            {expanded.methods ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
+
+        <Collapse in={expanded.methods}>
+          <List sx={{ 
+            mt: 1,
+            bgcolor: 'background.paper', 
+            borderRadius: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+          }}>
+            {memorizationRecommendations.map((recommendation, index) => (
+              <React.Fragment key={index}>
+                {index > 0 && <Divider variant="inset" component="li" />}
+                <ListItem 
+                  alignItems="flex-start" 
+                  sx={{ 
+                    py: 1.5,
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }
+                  }}
+                >
+                  <ListItemIcon>
+                    <Box sx={{ position: 'relative', mt: 0.5 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: `info.light`,
+                          width: 32,
+                          height: 32
+                        }}
+                      >
+                        <AutoAwesomeIcon fontSize="small" />
+                      </Avatar>
+                    </Box>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body1" fontWeight="medium" gutterBottom>
+                        {recommendation.title}
+                      </Typography>
+                    }
+                    secondary={
+                      <>
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ display: 'inline', mb: 1 }}
+                        >
+                          {recommendation.description}
+                        </Typography>
+                      </>
+                    }
+                  />
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Chip 
+              label="عرض المزيد من التوصيات" 
+              color="primary" 
+              clickable 
+              sx={{ px: 2 }}
+              onClick={() => console.log('عرض المزيد')} 
+            />
+          </Box>
+        </Collapse>
+      </Box>
+    </Paper>
+  );
+};
+
+export default AIRecommendationsPanel;

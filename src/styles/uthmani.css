@@ -1,0 +1,192 @@
+/* خطوط القرآن الكريم بالرسم العثماني */
+
+/* تحميل خط عثماني من Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+
+/* خط عثماني محلي إضافي */
+@font-face {
+  font-family: 'KFGQPC Uthmanic Script HAFS';
+  src: url('https://fonts.gstatic.com/s/amiriquran/v13/5aUt9_-1phKLFgshYDvh6Vwt5fVPZdbKfQ.woff2') format('woff2');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* تنسيقات للنص العثماني */
+.uthmani-text {
+  font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Noto Naskh Arabic', Arial, sans-serif !important;
+  font-size: 28px;
+  line-height: 2.5;
+  text-align: right;
+  direction: rtl;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  word-spacing: 6px;
+  color: #2c3e50;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.uthmani-text-large {
+  font-size: 32px;
+  line-height: 2.6;
+}
+
+.uthmani-text-small {
+  font-size: 24px;
+  line-height: 2.2;
+}
+
+.uthmani-text-extra-small {
+  font-size: 20px;
+  line-height: 2;
+}
+
+/* تنسيقات خاصة بالكلمات */
+.uthmani-word {
+  font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Noto Naskh Arabic', Arial, sans-serif !important;
+  display: inline-block;
+  margin: 1px 2px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.uthmani-word:hover {
+  background-color: rgba(30, 111, 142, 0.08) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  border-color: rgba(30, 111, 142, 0.2);
+}
+
+.uthmani-word:active {
+  transform: translateY(0px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* تنسيقات رقم الآية */
+.ayah-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #1976d2;
+  color: #1976d2;
+  background-color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin: 0 8px;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  vertical-align: middle;
+}
+
+/* تحسينات للجوال */
+@media (max-width: 768px) {
+  .uthmani-text {
+    font-size: 24px;
+    line-height: 2.2;
+    word-spacing: 4px;
+  }
+  
+  .uthmani-word {
+    margin: 1px;
+    padding: 3px 5px;
+  }
+  
+  .ayah-number {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+    margin: 0 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .uthmani-text {
+    font-size: 20px;
+    line-height: 2;
+    word-spacing: 3px;
+  }
+  
+  .uthmani-word {
+    margin: 1px;
+    padding: 2px 4px;
+  }
+  
+  .ayah-number {
+    width: 20px;
+    height: 20px;
+    font-size: 0.6rem;
+    margin: 0 4px;
+  }
+}
+
+/* تنسيقات خاصة بالأخطاء */
+.error-word {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-color: rgba(244, 67, 54, 0.3);
+  color: #d32f2f;
+}
+
+.warning-word {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-color: rgba(255, 152, 0, 0.3);
+  color: #f57c00;
+}
+
+.info-word {
+  background-color: rgba(33, 150, 243, 0.1);
+  border-color: rgba(33, 150, 243, 0.3);
+  color: #1976d2;
+}
+
+/* تأثيرات خاصة */
+.uthmani-highlight {
+  background-color: rgba(255, 235, 59, 0.3);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+/* تحسينات للطباعة */
+@media print {
+  .uthmani-text {
+    color: black !important;
+    font-size: 18px;
+    line-height: 1.8;
+    text-shadow: none;
+  }
+  
+  .uthmani-word {
+    background-color: transparent !important;
+    border: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+    color: black !important;
+  }
+}
+
+/* تنسيقات للاختيار */
+.uthmani-text::selection,
+.uthmani-word::selection {
+  background: rgba(30, 111, 142, 0.3);
+  color: #1a1a1a;
+}
+
+/* تحسين الوضوح */
+.uthmani-text,
+.uthmani-word {
+  font-feature-settings: "liga" 1, "calt" 1, "kern" 1;
+  font-variant-ligatures: common-ligatures;
+}
