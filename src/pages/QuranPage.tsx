@@ -27,6 +27,7 @@ import {
 import { styled } from '@mui/material/styles';
 import UthmaniReader from '../components/UthmaniReader';
 import QuranSearch from '../components/QuranSearch';
+import FontTest from '../components/FontTest';
 import {
   uthmaniSurahs,
   UthmaniSurah,

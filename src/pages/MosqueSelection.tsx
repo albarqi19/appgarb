@@ -125,7 +125,7 @@ const MosqueSelection: React.FC = () => {
             fontWeight: 500
           }}
         >          اختر من المدارس القرآنية المُسندة إليك لإدارة طلابك ومتابعة تقدمهم في الحفظ والمراجعة
-        </Typography>{/* أزرار التنقل */}
+        </Typography>        {/* أزرار التنقل - مخفية مؤقتاً */}
         <Stack 
           direction="row" 
           spacing={2} 
@@ -133,7 +133,8 @@ const MosqueSelection: React.FC = () => {
           sx={{ 
             mt: 3,
             position: 'relative',
-            zIndex: 10
+            zIndex: 10,
+            display: 'none' // إخفاء الأزرار مؤقتاً
           }}
         >
           <Button

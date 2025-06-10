@@ -31,6 +31,7 @@ import {
   UthmaniAyah,
   quranStats,
 } from '../data/quran-uthmani';
+import '../styles/uthmani.css';
 
 const SearchContainer = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -48,12 +49,18 @@ const ResultItem = styled(Paper)(({ theme }) => ({
 }));
 
 const UthmaniResultText = styled(Typography)(({ theme }) => ({
-  fontFamily: 'KFGQPC Uthmanic Script HAFS, Arial, sans-serif',
-  fontSize: '24px',
-  lineHeight: 2,
+  fontFamily: '"Amiri Quran", "KFGQPC Uthmanic Script HAFS", "Noto Naskh Arabic", serif',
+  fontSize: '28px',
+  lineHeight: 2.2,
   textAlign: 'right',
   direction: 'rtl',
   color: theme.palette.text.primary,
+  letterSpacing: '0.5px',
+  wordSpacing: '6px',
+  fontWeight: 400,
+  textRendering: 'optimizeLegibility',
+  WebkitFontSmoothing: 'antialiased',
+  MozOsxFontSmoothing: 'grayscale',
   '& .highlight': {
     backgroundColor: theme.palette.warning.light,
     color: theme.palette.warning.contrastText,
@@ -261,9 +268,9 @@ const QuranSearch: React.FC<QuranSearchProps> = ({
                           {isExpanded ? <ExpandLess /> : <ExpandMore />}
                         </Box>
                       </Box>
-                    }
-                    secondary={
+                    }                    secondary={
                       <UthmaniResultText
+                        className="uthmani-text"
                         dangerouslySetInnerHTML={{
                           __html: highlightText(result.ayah.textUthmani, searchQuery)
                         }}
@@ -287,26 +294,28 @@ const QuranSearch: React.FC<QuranSearchProps> = ({
                       <Typography variant="body2" color="text.secondary">
                         <strong>عدد الآيات:</strong> {result.surah.totalAyahs}
                       </Typography>
-                    </Box>
-
-                    {/* الكلمات */}
-                    <Typography variant="subtitle2" gutterBottom>
-                      كلمات الآية:
-                    </Typography>
-                    <Box display="flex" flexWrap="wrap" gap={1} justifyContent="flex-end">
-                      {result.ayah.words.map((word, wordIndex) => (
-                        <Chip
-                          key={`${resultId}-word-${wordIndex}`}
-                          label={word.text}
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            fontFamily: 'KFGQPC Uthmanic Script HAFS, Arial, sans-serif',
-                            fontSize: '16px',
-                          }}
-                        />
-                      ))}
-                    </Box>
+                    </Box>                    {/* الكلمات - مخفي لتحسين التجربة */}
+                    {false && (
+                      <>
+                        <Typography variant="subtitle2" gutterBottom>
+                          كلمات الآية:
+                        </Typography>
+                        <Box display="flex" flexWrap="wrap" gap={1} justifyContent="flex-end">
+                          {result.ayah.words.map((word, wordIndex) => (
+                            <Chip
+                              key={`${resultId}-word-${wordIndex}`}
+                              label={word.text}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                fontFamily: 'KFGQPC Uthmanic Script HAFS, Arial, sans-serif',
+                                fontSize: '16px',
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </>
+                    )}
 
                     {/* الترجمة */}
                     {result.ayah.translation && (
