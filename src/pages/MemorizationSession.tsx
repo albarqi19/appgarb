@@ -31,7 +31,8 @@ import {
   InputAdornment,
   Badge,
   Popover,
-  ButtonGroup
+  ButtonGroup,
+  useTheme
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -48,6 +49,7 @@ import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import GradeIcon from '@mui/icons-material/Grade';
 import InfoIcon from '@mui/icons-material/Info';
 import NotesIcon from '@mui/icons-material/Notes';
+import StopIcon from '@mui/icons-material/Stop';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import HighlightIcon from '@mui/icons-material/Highlight';
 import { surahs, ayahs } from '../data/quran';
@@ -61,6 +63,15 @@ import {
 } from '../data/quran-uthmani';
 import { studentAnalytics } from '../data/ai-insights';
 import { MemorizationError } from '../data/students';
+// إضافة استيراد خدمة API ✅
+import { 
+  createRecitationSession, 
+  addRecitationErrors, 
+  updateRecitationSession,
+  CreateSessionData,
+  AddErrorsData,
+  RecitationError 
+} from '../services/recitationService';
 import '../styles/uthmani.css';
 
 // أنواع الأخطاء في التسميع
@@ -72,7 +83,8 @@ const errorTypes = [
 
 const MemorizationSession: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedStudent, memorizationMode, setIsSessionActive } = useAppContext();
+  const { selectedStudent, memorizationMode, setIsSessionActive, user } = useAppContext();
+  const theme = useTheme();
   const [isSessionStarted, setIsSessionStarted] = useState(false);
   const [currentSurah, setCurrentSurah] = useState<UthmaniSurah | undefined>(
     uthmaniSurahs.find(s => s.arabicName === selectedStudent?.currentMemorization.surahName)
@@ -87,34 +99,63 @@ const MemorizationSession: React.FC = () => {
   const [finalScore, setFinalScore] = useState(100);
   const [showScoreDialog, setShowScoreDialog] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-  const [sessionTime, setSessionTime] = useState(0);
-  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timer | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);  const [sessionTime, setSessionTime] = useState(0);  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timer | null>(null);
   const [notes, setNotes] = useState('');
   const [showErrorSummary, setShowErrorSummary] = useState(true);
-  // التأكد من وجود طالب ونوع تسميع
+  const [isPageReady, setIsPageReady] = useState(false);
+    // ✅ إضافة متغيرات الحالة الجديدة للـ API
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isSendingErrors, setIsSendingErrors] = useState(false);
+  const [isSavingResults, setIsSavingResults] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);// التأكد من وجود طالب ونوع تسميع
   useEffect(() => {
-    if (!selectedStudent || !memorizationMode) {
+    console.log('MemorizationSession useEffect - selectedStudent:', selectedStudent?.name);
+    console.log('MemorizationSession useEffect - memorizationMode:', memorizationMode);
+    
+    if (!selectedStudent) {
+      console.log('لا يوجد طالب محدد، الانتقال إلى صفحة الطلاب');
       navigate('/students');
+      return;
+    }
+
+    if (!memorizationMode) {
+      console.log('لا يوجد نوع تسميع محدد، الانتقال إلى خيارات التسميع');
+      navigate('/memorization-options');
       return;
     }
 
     // تحميل السورة المناسبة بالرسم العثماني
     const surah = uthmaniSurahs.find(s => s.arabicName === selectedStudent.currentMemorization.surahName);
-    setCurrentSurah(surah);
-    
-    if (surah) {
-      // تحميل الآيات المطلوبة بالرسم العثماني
-      const allAyahs = getAyahsBySurahId(surah.id);
-      const requiredAyahs = allAyahs.filter(ayah => 
-        ayah.number >= selectedStudent.currentMemorization.fromAyah && 
-        ayah.number <= selectedStudent.currentMemorization.toAyah
-      );
-      setCurrentAyahs(requiredAyahs);
+    if (!surah) {
+      console.error('لم يتم العثور على السورة:', selectedStudent.currentMemorization.surahName);
+      navigate('/memorization-options');
+      return;
     }
     
+    console.log('تم العثور على السورة:', surah.arabicName);
+    setCurrentSurah(surah);
+    
+    // تحميل الآيات المطلوبة بالرسم العثماني
+    const allAyahs = getAyahsBySurahId(surah.id);
+    const requiredAyahs = allAyahs.filter(ayah => 
+      ayah.number >= selectedStudent.currentMemorization.fromAyah && 
+      ayah.number <= selectedStudent.currentMemorization.toAyah
+    );
+    
+    if (requiredAyahs.length === 0) {
+      console.error('لم يتم العثور على آيات للنطاق المحدد');
+      navigate('/memorization-options');
+      return;
+    }
+    
+    console.log('تم تحميل الآيات:', requiredAyahs.length);
+    setCurrentAyahs(requiredAyahs);
     setFromAyah(selectedStudent.currentMemorization.fromAyah);
     setToAyah(selectedStudent.currentMemorization.toAyah);
+    
+    // تعيين الصفحة كجاهزة
+    setIsPageReady(true);
   }, [selectedStudent, memorizationMode, navigate]);
   
   // إدارة المؤقت للجلسة
@@ -135,13 +176,54 @@ const MemorizationSession: React.FC = () => {
       }
     };
   }, [isSessionStarted, sessionTimer]);
-
   // بدء جلسة التسميع
-  const handleStartSession = () => {
-    setIsSessionStarted(true);
-    setIsSessionActive(true);
-    setErrors([]);
-    setSessionTime(0);
+  const handleStartSession = async () => {
+    if (!selectedStudent || !currentSurah) return;
+    
+    setIsCreatingSession(true);
+    setApiError(null);
+    
+    try {      // إعداد بيانات الجلسة الجديدة
+      const sessionData: CreateSessionData = {
+        student_id: parseInt(selectedStudent.id),
+        teacher_id: parseInt(user?.id || '1'), // استخدام معرف المعلم الحقيقي من السياق
+        quran_circle_id: 1, // TODO: استخدام معرف الحلقة الحقيقي
+        start_surah_number: currentSurah.id,
+        start_verse: fromAyah,
+        end_surah_number: currentSurah.id,
+        end_verse: toAyah,
+        recitation_type: memorizationMode || 'حفظ',
+        duration_minutes: 30, // ✅ مدة مقدرة للجلسة (سيتم تحديثها عند الانتهاء)
+        grade: 8.5, // ✅ استخدام درجة من النطاق المسموح (0-10)
+        evaluation: 'جيد جداً', // ✅ استخدام تقييم من القيم المُختبرة
+        teacher_notes: 'جلسة جديدة - بدء التسميع'
+      };
+      
+      console.log('🚀 إنشاء جلسة تسميع جديدة...', sessionData);
+      console.log('⏱️ المدة المقدرة: 30 دقيقة (ستُحدث بالوقت الفعلي عند الانتهاء)');
+      
+      // استدعاء API لإنشاء الجلسة
+      const response = await createRecitationSession(sessionData);
+      
+      if (response.success) {
+        setCurrentSessionId(response.data.session_id);
+        console.log('✅ تم إنشاء الجلسة بنجاح:', response.data.session_id);
+        
+        // بدء الجلسة في الواجهة
+        setIsSessionStarted(true);
+        setIsSessionActive(true);
+        setErrors([]);
+        setSessionTime(0);
+      } else {
+        throw new Error('فشل في إنشاء الجلسة');
+      }
+      
+    } catch (error) {
+      console.error('❌ خطأ في إنشاء جلسة التسميع:', error);
+      setApiError('حدث خطأ في إنشاء جلسة التسميع. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsCreatingSession(false);
+    }
   };
   // معالجة اختيار كلمة للإشارة لوجود خطأ
   const handleWordClick = (event: React.MouseEvent<HTMLElement>, word: string, wordIndex: number, ayahIndex: number) => {
@@ -182,9 +264,13 @@ const MemorizationSession: React.FC = () => {
 
     setFinalScore(current => Math.max(0, current - penalty));
   };
-
   // إضافة خطأ مباشرة بنوع محدد
-  const handleAddErrorType = (errorType: 'حفظ' | 'تجويد' | 'نطق') => {
+  const handleAddErrorType = async (errorType: 'حفظ' | 'تجويد' | 'نطق') => {
+    if (!currentSessionId || !currentSurah) {
+      console.warn('⚠️ لا يمكن إضافة خطأ: معرف الجلسة أو السورة غير متوفر');
+      return;
+    }
+    
     const newError: MemorizationError = {
       type: errorType,
       wordIndex: selectedWord.index,
@@ -192,6 +278,7 @@ const MemorizationSession: React.FC = () => {
       ayahIndex: selectedWord.ayahIndex
     };
     
+    // إضافة الخطأ محلياً فوراً
     setErrors([...errors, newError]);
     setIsDialogOpen(false);
     setAnchorEl(null);
@@ -213,6 +300,42 @@ const MemorizationSession: React.FC = () => {
     }
 
     setFinalScore(current => Math.max(0, current - penalty));
+    
+    // إرسال الخطأ للـ API
+    setIsSendingErrors(true);
+    try {
+      const apiError: RecitationError = {
+        surah_number: currentSurah.id,
+        verse_number: selectedWord.ayahIndex,
+        word_text: selectedWord.word,
+        error_type: errorType,
+        correction_note: `خطأ ${errorType} في كلمة "${selectedWord.word}"`,
+        teacher_note: `تم تسجيل خطأ ${errorType} أثناء التسميع`,
+        is_repeated: false,
+        severity_level: penalty >= 3 ? 'شديد' : penalty >= 2 ? 'متوسط' : 'خفيف'
+      };
+      
+      const errorsData: AddErrorsData = {
+        session_id: currentSessionId,
+        errors: [apiError]
+      };
+      
+      console.log('🚀 إرسال خطأ للـ API...', errorsData);
+      
+      const response = await addRecitationErrors(errorsData);
+      
+      if (response.success) {
+        console.log('✅ تم إرسال الخطأ بنجاح:', response.data);
+      } else {
+        console.error('❌ فشل في إرسال الخطأ');
+      }
+      
+    } catch (error) {
+      console.error('❌ خطأ في إرسال الخطأ للـ API:', error);
+      // الخطأ محفوظ محلياً، لذلك لا نحتاج لإظهار رسالة خطأ للمستخدم
+    } finally {
+      setIsSendingErrors(false);
+    }
   };
 
   // تحليل الأخطاء باستخدام الذكاء الاصطناعي
@@ -261,14 +384,60 @@ const MemorizationSession: React.FC = () => {
   const handleFinishSession = () => {
     setIsSessionStarted(false);
     analyzeErrors();
-  };
-
-  // حفظ النتائج والعودة لصفحة الطلاب
-  const handleSaveResults = () => {
-    // في تطبيق حقيقي، هنا سنقوم بحفظ النتائج في قاعدة البيانات
-    setShowScoreDialog(false);
-    setIsSessionActive(false);
-    navigate('/students');
+  };  // حفظ النتائج والعودة لصفحة الطلاب
+  const handleSaveResults = async () => {
+    if (!currentSessionId) {
+      console.warn('⚠️ لا يمكن حفظ النتائج: معرف الجلسة غير متوفر');
+      setShowScoreDialog(false);
+      setIsSessionActive(false);
+      navigate('/students');
+      return;
+    }
+    
+    setIsSavingResults(true);
+    
+    try {      // تحويل الدرجة من نطاق 0-100 إلى نطاق 0-10 لتوافق قاعدة البيانات
+      const gradeForAPI = Math.max(0, Math.round((finalScore / 100) * 10));      // حساب مدة الجلسة بالدقائق (تحويل من ثواني إلى دقائق)
+      const durationMinutes = Math.round(sessionTime / 60 * 100) / 100; // Round to 2 decimal places
+      console.log('🕐 Duration calculation:', {
+        sessionTime,
+        durationMinutes,
+        sessionTimeMinutes: sessionTime / 60
+      });
+      
+      // إعداد التقييم النصي بناءً على الدرجة المئوية
+      let evaluation = '';
+      if (finalScore >= 95) evaluation = 'ممتاز';
+      else if (finalScore >= 85) evaluation = 'جيد جداً';
+      else if (finalScore >= 75) evaluation = 'جيد';
+      else if (finalScore >= 65) evaluation = 'مقبول';
+      else evaluation = 'يحتاج تحسين';
+      
+      // إعداد ملاحظات المعلم
+      const teacherNotes = notes || `جلسة ${memorizationMode} - عدد الأخطاء: ${errors.length} - النسبة المئوية: ${finalScore}% - المدة: ${durationMinutes} دقيقة`;
+      
+      const updateData = {
+        grade: gradeForAPI, // الدرجة من 0-10
+        evaluation: evaluation,
+        teacher_notes: teacherNotes,
+        duration_minutes: durationMinutes // ✅ إرسال مدة الجلسة المحسوبة
+      };      console.log('🚀 حفظ النتائج النهائية...', updateData);
+      console.log(`📊 تحويل الدرجة: ${finalScore}% -> ${gradeForAPI}/10`);
+      console.log(`⏱️ حساب المدة: ${sessionTime} ثانية -> ${durationMinutes} دقيقة (بدقة عالية)`);
+      
+      const response = await updateRecitationSession(currentSessionId, updateData);
+      
+      console.log('✅ تم حفظ النتائج بنجاح:', response);
+      
+    } catch (error) {
+      console.error('❌ خطأ في حفظ النتائج:', error);
+      setApiError('حدث خطأ في حفظ النتائج. ستتم العودة للصفحة الرئيسية.');
+    } finally {
+      setIsSavingResults(false);
+      setShowScoreDialog(false);
+      setIsSessionActive(false);
+      navigate('/students');
+    }
   };
 
   // الحصول على لون الكلمة بناءً على الأخطاء
@@ -304,18 +473,44 @@ const MemorizationSession: React.FC = () => {
   const getErrorSummary = (type: string): number => {
     return errors.filter(e => e.type === type).length;
   };
-
-  if (!selectedStudent || !currentSurah || !memorizationMode) {
-    return <CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />;
+  if (!selectedStudent) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <CircularProgress sx={{ mb: 2 }} />
+        <Typography variant="h6" gutterBottom>جاري التحقق من بيانات الطالب...</Typography>
+        <Typography variant="body2" color="text.secondary">يتم إعادة التوجيه إلى صفحة الطلاب</Typography>
+      </Box>
+    );
   }
 
+  if (!memorizationMode) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <CircularProgress sx={{ mb: 2 }} />
+        <Typography variant="h6" gutterBottom>لم يتم تحديد نوع التسميع</Typography>
+        <Typography variant="body2" color="text.secondary">يتم إعادة التوجيه إلى خيارات التسميع</Typography>
+      </Box>
+    );
+  }
+
+  if (!currentSurah) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <CircularProgress sx={{ mb: 2 }} />
+        <Typography variant="h6" gutterBottom>جاري تحميل السورة...</Typography>
+        <Typography variant="body2" color="text.secondary">يتم تحضير نص التسميع</Typography>
+      </Box>
+    );
+  }
   return (
     <Box 
       sx={{
         minHeight: '100vh',
         pt: 10,
         pb: 5,
-        background: 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(255,255,255,1) 100%)'
+        background: theme.palette.mode === 'light' 
+          ? 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(255,255,255,1) 100%)'
+          : 'linear-gradient(180deg, rgba(10,25,47,1) 0%, rgba(17,34,64,1) 100%)'
       }}
     >
       <Container maxWidth="lg">
@@ -330,7 +525,9 @@ const MemorizationSession: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-            background: 'linear-gradient(135deg, #1e6f8e 0%, #134b60 100%)',
+            background: theme.palette.mode === 'light' 
+              ? 'linear-gradient(135deg, #1e6f8e 0%, #134b60 100%)'
+              : 'linear-gradient(135deg, #4a9fbe 0%, #1e6f8e 100%)',
             color: 'white',
             overflow: 'hidden',
             position: 'relative'
@@ -381,12 +578,12 @@ const MemorizationSession: React.FC = () => {
                 mr: 2,
                 border: 'none'
               }} 
-            />
-            <Button
+            />            <Button
               variant="contained"
               color={isSessionStarted ? "error" : "success"}
-              startIcon={isSessionStarted ? <PauseIcon /> : <PlayArrowIcon />}
+              startIcon={isSessionStarted ? <PauseIcon /> : (isCreatingSession ? <CircularProgress size={20} color="inherit" /> : <PlayArrowIcon />)}
               onClick={isSessionStarted ? handleFinishSession : handleStartSession}
+              disabled={isCreatingSession}
               sx={{ 
                 px: 3,
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -395,10 +592,31 @@ const MemorizationSession: React.FC = () => {
                 }
               }}
             >
-              {isSessionStarted ? "إنهاء التسميع" : "بدء التسميع"}
+              {isCreatingSession ? "جاري الإنشاء..." : (isSessionStarted ? "إنهاء التسميع" : "بدء التسميع")}
             </Button>
           </Box>
         </Paper>
+        
+        {/* ✅ إضافة رسائل الخطأ وحالات التحميل */}
+        {apiError && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3, borderRadius: 2 }}
+            onClose={() => setApiError(null)}
+          >
+            {apiError}
+          </Alert>
+        )}
+        
+        {(isSendingErrors || isSavingResults) && (
+          <Alert 
+            severity="info" 
+            icon={<CircularProgress size={20} />}
+            sx={{ mb: 3, borderRadius: 2 }}
+          >
+            {isSendingErrors ? "جاري إرسال الأخطاء..." : "جاري حفظ النتائج..."}
+          </Alert>
+        )}
         
         <Grid container spacing={3}>
           {/* معلومات الطالب */}
@@ -421,9 +639,8 @@ const MemorizationSession: React.FC = () => {
                     mx: 'auto',
                     mb: 2,
                     boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {selectedStudent.name.charAt(0)}
+                  }}                >
+                  {selectedStudent.name ? selectedStudent.name.charAt(0) : '؟'}
                 </Avatar>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   {selectedStudent.name}
@@ -510,10 +727,18 @@ const MemorizationSession: React.FC = () => {
                           <Typography variant="body2" color="text.secondary">
                             {type.label}
                           </Typography>
+                        </Box>                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            {getErrorSummary(type.id)}
+                          </Typography>
+                          {/* ✅ مؤشر إرسال الأخطاء */}
+                          {isSendingErrors && (
+                            <CircularProgress 
+                              size={16} 
+                              sx={{ ml: 1, color: 'primary.main' }}
+                            />
+                          )}
                         </Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          {getErrorSummary(type.id)}
-                        </Typography>
                       </Box>
                       <LinearProgress 
                         variant="determinate" 
@@ -763,11 +988,41 @@ const MemorizationSession: React.FC = () => {
                         </Box>
                       ))}
                     </Box>
-                  </Paper>
-                ) : (
+                  </Paper>                ) : (
                   <Box sx={{ textAlign: 'center', py: 5 }}>
                     <Typography variant="body1" color="text.secondary">
                       لا توجد آيات متاحة لهذه السورة
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* زر إنهاء الجلسة أسفل الآيات - يظهر فقط أثناء التسميع */}
+                {isSessionStarted && (
+                  <Box sx={{ mt: 4, mb: 3, textAlign: 'center' }}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      size="large"
+                      startIcon={<StopIcon />}
+                      onClick={handleFinishSession}
+                      sx={{ 
+                        px: 4,
+                        py: 1.5,
+                        borderRadius: 3,
+                        boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
+                        fontSize: '1.1rem',
+                        fontWeight: 'bold',
+                        '&:hover': {
+                          boxShadow: '0 6px 16px rgba(244, 67, 54, 0.4)',
+                          transform: 'translateY(-1px)'
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      إنهاء جلسة التسميع
+                    </Button>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                      اضغط هنا عند الانتهاء من تسميع آخر آية
                     </Typography>
                   </Box>
                 )}
@@ -775,7 +1030,7 @@ const MemorizationSession: React.FC = () => {
             </Paper>
           </Grid>
         </Grid>
-      </Container>      {/* قائمة أنواع الأخطاء السريعة */}
+      </Container>{/* قائمة أنواع الأخطاء السريعة */}
       <Popover
         open={isDialogOpen}
         anchorEl={anchorEl}
@@ -994,8 +1249,7 @@ const MemorizationSession: React.FC = () => {
                           مدة الجلسة
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          {formatTime(sessionTime)}
-                        </Typography>
+                          {formatTime(sessionTime)}                      </Typography>
                       </Grid>
                     </Grid>
                     
@@ -1228,18 +1482,18 @@ const MemorizationSession: React.FC = () => {
           </Grid>
         </DialogContent>
         
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button 
+        <DialogActions sx={{ px: 3, pb: 3 }}>          <Button 
             onClick={handleSaveResults} 
             variant="contained" 
             color="primary"
-            startIcon={<SaveIcon />}
+            startIcon={isSavingResults ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+            disabled={isSavingResults}
             sx={{ 
               px: 4,
               py: 1
             }}
           >
-            حفظ النتائج والعودة
+            {isSavingResults ? "جاري الحفظ..." : "حفظ النتائج والعودة"}
           </Button>
         </DialogActions>
       </Dialog>

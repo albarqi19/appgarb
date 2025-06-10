@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Grid,
@@ -33,6 +33,8 @@ import { mosques } from '../data/mosques';
 import { students } from '../data/students';
 import { surahs } from '../data/quran';
 import { aiRecommendations } from '../data/ai-insights';
+import { Circle } from '../data/circles';
+import { getTeacherCircles, getTeacherStudents, getGeneralStats, getTeacherMosques, getMosqueStudentsCount, Mosque as APIMosque } from '../services/authService';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -49,6 +51,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import SchoolIcon from '@mui/icons-material/School';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
+import GroupsIcon from '@mui/icons-material/Groups';
 import PieChartIcon from '@mui/icons-material/PieChart';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { 
@@ -72,15 +75,83 @@ import AIRecommendationsPanel from '../components/AIRecommendationsPanel';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { setCurrentMosque } = useAppContext();
+  const { setCurrentMosque, user } = useAppContext();
   const [statsPeriod, setStatsPeriod] = useState(0); // 0: أسبوعي، 1: شهري، 2: سنوي
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(0);  const [teacherCircles, setTeacherCircles] = useState<Circle[]>([]);
+  const [circlesLoading, setCirclesLoading] = useState(true);
+  const [teacherStudents, setTeacherStudents] = useState<any[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [generalStats, setGeneralStats] = useState<any>(null);  const [teacherMosques, setTeacherMosques] = useState<APIMosque[]>([]);
+  const [mosquesLoading, setMosquesLoading] = useState(true);
+  const [mosqueStudentsCounts, setMosqueStudentsCounts] = useState<Record<string, number>>({});// جلب البيانات الخاصة بالمعلم
+  useEffect(() => {
+    const fetchTeacherData = async () => {
+      console.log('بدء جلب بيانات المعلم، معرف المستخدم:', user?.id);
+      console.log('بيانات المستخدم الكاملة:', user);
+        if (user?.id) {
+        try {
+          setCirclesLoading(true);
+          setStudentsLoading(true);
+          setMosquesLoading(true);
+          
+          console.log('جلب الحلقات والمساجد للمعلم:', user.id);
+          
+          // جلب الحلقات والطلاب والإحصائيات والمساجد بشكل متوازي
+          const [circles, students, stats, mosques] = await Promise.all([
+            getTeacherCircles(user.id),
+            getTeacherStudents(user.id),
+            getGeneralStats(),
+            getTeacherMosques(user.id)
+          ]);
+            console.log('النتائج المستلمة:');
+          console.log('- الحلقات:', circles);
+          console.log('- الطلاب:', students);
+          console.log('- الإحصائيات:', stats);
+          console.log('- المساجد:', mosques);
+          console.log('- حالة تحميل الحلقات:', circlesLoading);
+          console.log('- طول مصفوفة الحلقات:', circles.length);
+          
+          setTeacherCircles(circles);
+          setTeacherStudents(students);
+          setGeneralStats(stats);          setTeacherMosques(mosques);
+          
+          console.log('تم جلب بيانات المعلم:', { circles, students, stats, mosques });
+          
+          // جلب عدد الطلاب لكل مسجد
+          if (mosques.length > 0) {
+            const counts: Record<string, number> = {};
+            await Promise.all(
+              mosques.map(async (mosque) => {
+                try {
+                  const count = await getMosqueStudentsCount(mosque.id.toString());
+                  counts[mosque.id.toString()] = count;
+                } catch (error) {
+                  console.error(`خطأ في جلب عدد طلاب المسجد ${mosque.id}:`, error);
+                  counts[mosque.id.toString()] = 0;
+                }
+              })
+            );
+            setMosqueStudentsCounts(counts);
+          }
+          
+        } catch (error) {
+          console.error('خطأ في جلب بيانات المعلم:', error);} finally {
+          setCirclesLoading(false);
+          setStudentsLoading(false);
+          setMosquesLoading(false);
+        }
+      } else {
+        console.log('لا يوجد معرف مستخدم');
+      }
+    };
 
+    fetchTeacherData();
+  }, [user?.id]);
   // بيانات للرسم البياني الدائري للطلاب حسب المستوى
   const getLevelDistributionData = () => {
     const levelCounts = { مبتدئ: 0, متوسط: 0, متقدم: 0 };
     
-    students.forEach(student => {
+    teacherStudents.forEach(student => {
       if (levelCounts[student.level as keyof typeof levelCounts] !== undefined) {
         levelCounts[student.level as keyof typeof levelCounts] += 1;
       }
@@ -92,12 +163,11 @@ const Dashboard: React.FC = () => {
       { name: 'متقدم', value: levelCounts.متقدم, color: '#4caf50' }
     ];
   };
-
-  // بيانات للرسم البياني الشريطي للطلاب حسب المسجد
-  const getStudentsPerMosqueData = () => {
-    return mosques.map(mosque => ({
-      name: mosque.name.split(' ').slice(-1)[0], // الاسم الأخير فقط للعرض
-      'عدد الطلاب': mosque.studentsCount,
+  // بيانات للرسم البياني الشريطي للطلاب حسب الحلقة
+  const getStudentsPerCircleData = () => {
+    return teacherCircles.map(circle => ({
+      name: circle.name.length > 10 ? circle.name.substring(0, 10) + '...' : circle.name,
+      'عدد الطلاب': circle.studentsCount,
       color: '#1e6f8e'
     }));
   };
@@ -121,13 +191,20 @@ const Dashboard: React.FC = () => {
       { name: 'مايو', حفظ: 80, مراجعة: 85 },
     ];
   };
-
   // اختيار مسجد والانتقال لصفحة الطلاب
   const handleMosqueSelect = (mosqueId: string) => {
-    const selected = mosques.find(m => m.id === mosqueId);
-    if (selected) {
-      setCurrentMosque(selected);
+    // البحث في المساجد من API أولاً
+    const selectedAPI = teacherMosques.find(m => m.id === mosqueId);    if (selectedAPI) {      // تحويل مسجد API إلى تنسيق محلي للتوافق
+      const localMosque = {
+        id: selectedAPI.id.toString(),
+        name: selectedAPI.mosque_name || selectedAPI.اسم_المسجد || 'مسجد غير محدد',
+        location: selectedAPI.street || selectedAPI.district || selectedAPI.الشارع || selectedAPI.الحي || 'موقع غير محدد',
+        studentsCount: 0 // سيتم جلبه منفصلاً
+      };
+      setCurrentMosque(localMosque);
       navigate('/students');
+    } else {
+      console.error('لم يتم العثور على المسجد المحدد في مساجد API:', mosqueId);
     }
   };
 
@@ -204,8 +281,7 @@ const Dashboard: React.FC = () => {
         </Paper>
 
         {/* بطاقات المعلومات الرئيسية */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>          <Grid item xs={12} sm={6} md={3}>
             <Card 
               elevation={0}
               sx={{ 
@@ -243,7 +319,7 @@ const Dashboard: React.FC = () => {
                     }}
                   >
                     <path 
-                      d="M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21"
+                      d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21A7,7 0 0,1 14,26H10A7,7 0 0,1 3,19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M12,4A1,1 0 0,0 11,5A1,1 0 0,0 12,6A1,1 0 0,0 13,5A1,1 0 0,0 12,4Z"
                       fill="#FFFFFF"
                     />
                   </Box>
@@ -252,7 +328,7 @@ const Dashboard: React.FC = () => {
                 <Box sx={{ position: 'relative', zIndex: 1 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" fontWeight="medium">
-                      المدارس القرآنية
+                      الحلقات القرآنية
                     </Typography>
                     <Avatar 
                       sx={{ 
@@ -261,15 +337,14 @@ const Dashboard: React.FC = () => {
                         height: 40
                       }}
                     >
-                      <MosqueIcon />
+                      <GroupsIcon />
                     </Avatar>
-                  </Box>
-                  <Typography variant="h3" fontWeight="bold" sx={{ my: 2 }}>
-                    {mosques.length}
+                  </Box>                  <Typography variant="h3" fontWeight="bold" sx={{ my: 2 }}>
+                    {circlesLoading ? '...' : teacherCircles.length}
                   </Typography>
                   <Chip 
                     icon={<TrendingUpIcon />} 
-                    label="نشطة بالكامل" 
+                    label={`${teacherCircles.reduce((total, circle) => total + circle.studentsCount, 0)} طالب`}
                     size="small"
                     sx={{ 
                       bgcolor: 'rgba(255,255,255,0.2)', 
@@ -280,10 +355,10 @@ const Dashboard: React.FC = () => {
                 </Box>
               </Box>
               
-              <CardActionArea onClick={() => navigate('/')} sx={{ p: 2 }}>
+              <CardActionArea onClick={() => navigate('/circles')} sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Typography variant="body2" color="text.secondary">
-                    عرض القائمة الكاملة
+                    عرض الحلقات
                   </Typography>
                   <ArrowForwardIcon fontSize="small" color="primary" />
                 </Box>
@@ -349,13 +424,12 @@ const Dashboard: React.FC = () => {
                     >
                       <PeopleIcon />
                     </Avatar>
-                  </Box>
-                  <Typography variant="h3" fontWeight="bold" sx={{ my: 2 }}>
-                    {students.length}
+                  </Box>                  <Typography variant="h3" fontWeight="bold" sx={{ my: 2 }}>
+                    {studentsLoading ? '...' : teacherStudents.length}
                   </Typography>
                   <Chip 
                     icon={<EventAvailableIcon />} 
-                    label={`${Math.round(students.reduce((avg, s) => avg + s.attendanceRate, 0) / students.length)}% نسبة الحضور`}
+                    label={`${teacherStudents.length > 0 ? Math.round(teacherStudents.reduce((avg, s) => avg + s.attendanceRate, 0) / teacherStudents.length) : 0}% نسبة الحضور`}
                     size="small"
                     sx={{ 
                       bgcolor: 'rgba(255,255,255,0.2)', 
@@ -768,10 +842,9 @@ const Dashboard: React.FC = () => {
                         mr: 2
                       }}
                     >
-                      <MosqueIcon sx={{ color: '#4caf50' }} />
-                    </Avatar>
-                    <Typography variant="h6" fontWeight="bold">
-                      المدارس القرآنية
+                      <GroupsIcon sx={{ color: '#4caf50' }} />
+                    </Avatar>                    <Typography variant="h6" fontWeight="bold">
+                      الحلقات القرآنية
                     </Typography>
                   </Box>
                   <Tooltip title="عرض كافة المدارس">
@@ -781,71 +854,92 @@ const Dashboard: React.FC = () => {
                   </Tooltip>
                 </Box>
               </Box>
-              
-              <Box sx={{ p: 1, flex: 1, overflow: 'auto' }}>
-                <List disablePadding>
-                  {mosques.map((mosque, index) => (
-                    <Paper
-                      key={mosque.id}
-                      elevation={0}
-                      sx={{
-                        mb: 1,
-                        mx: 1,
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        transition: 'all 0.3s',
-                        '&:hover': {
-                          boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
-                          borderColor: 'primary.main'
-                        }
-                      }}
-                    >
-                      <ListItem
-                        secondaryAction={
-                          <Button 
-                            endIcon={<ArrowForwardIcon />} 
-                            size="small"
-                            variant="outlined"
-                            sx={{ borderRadius: 2 }}
-                            onClick={() => handleMosqueSelect(mosque.id)}
-                          >
-                            الطلاب
-                          </Button>
-                        }
-                        sx={{ py: 1.5, px: 2 }}
+                <Box sx={{ p: 1, flex: 1, overflow: 'auto' }}>
+                {circlesLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      جاري تحميل الحلقات...
+                    </Typography>
+                  </Box>
+                ) : teacherCircles.length === 0 ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column' }}>
+                    <GroupsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      لا توجد حلقات مُسندة إليك
+                    </Typography>
+                  </Box>
+                ) : (
+                  <List disablePadding>
+                    {teacherCircles.map((circle, index) => (
+                      <Paper
+                        key={circle.id}
+                        elevation={0}
+                        sx={{
+                          mb: 1,
+                          mx: 1,
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          transition: 'all 0.3s',
+                          '&:hover': {
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
+                            borderColor: 'primary.main'
+                          }
+                        }}
                       >
-                        <ListItemAvatar>
-                          <Avatar 
-                            sx={{ 
-                              bgcolor: index % 3 === 0 ? 'primary.light' : 
-                                      index % 3 === 1 ? 'secondary.light' : 'success.light',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                            }}
-                          >
-                            {mosque.name.charAt(0)}
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography fontWeight="medium" variant="body1">
-                              {mosque.name}
-                            </Typography>
+                        <ListItem
+                          secondaryAction={
+                            <Button 
+                              endIcon={<ArrowForwardIcon />} 
+                              size="small"
+                              variant="outlined"
+                              sx={{ borderRadius: 2 }}
+                              onClick={() => navigate(`/circle/${circle.id}/students`)}
+                            >
+                              الطلاب
+                            </Button>
                           }
-                          secondary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                              <PeopleIcon fontSize="small" sx={{ mr: 0.5, fontSize: '0.9rem', color: 'text.secondary' }} />
-                              <Typography variant="caption" color="text.secondary">
-                                {mosque.studentsCount} طالب
+                          sx={{ py: 1.5, px: 2 }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar 
+                              sx={{ 
+                                bgcolor: index % 3 === 0 ? 'primary.light' : 
+                                        index % 3 === 1 ? 'secondary.light' : 'success.light',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                              }}
+                            >
+                              {circle.name.charAt(0)}
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={
+                              <Typography fontWeight="medium" variant="body1">
+                                {circle.name}
                               </Typography>
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    </Paper>
-                  ))}
-                </List>
+                            }
+                            secondary={
+                              <Box sx={{ mt: 0.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                                  <PeopleIcon fontSize="small" sx={{ mr: 0.5, fontSize: '0.9rem', color: 'text.secondary' }} />
+                                  <Typography variant="caption" color="text.secondary">
+                                    {circle.studentsCount} طالب
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <CalendarTodayIcon fontSize="small" sx={{ mr: 0.5, fontSize: '0.9rem', color: 'text.secondary' }} />                                  <Typography variant="caption" color="text.secondary">
+                                    {`${circle.schedule.days.join('، ')} (${circle.schedule.startTime} - ${circle.schedule.endTime})`}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      </Paper>
+                    ))}
+                  </List>
+                )}
               </Box>
             </Paper>
           </Grid>
@@ -921,9 +1015,8 @@ const Dashboard: React.FC = () => {
                                 bgcolor: index === 0 ? '#ffc107' : index === 1 ? '#9e9e9e' : '#cd7f32',
                                 border: '2px solid',
                                 borderColor: index === 0 ? '#ffc107' : index === 1 ? '#9e9e9e' : '#cd7f32'
-                              }}
-                            >
-                              {student.name.charAt(0)}
+                              }}                            >
+                              {student.name ? student.name.charAt(0) : '؟'}
                             </Avatar>
                             <Box
                               sx={{

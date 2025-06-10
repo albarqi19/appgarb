@@ -142,24 +142,26 @@ const ParentDashboard: React.FC = () => {
     }
   };
 
-  return (
-    <Box 
+  return (    <Box 
       sx={{
         minHeight: '100vh',
         pt: 8,
         pb: 4,
-        background: 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(255,255,255,1) 100%)'
+        background: theme.palette.mode === 'light' 
+          ? 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(255,255,255,1) 100%)'
+          : 'linear-gradient(180deg, rgba(10,25,47,1) 0%, rgba(17,34,64,1) 100%)'
       }}
     >
       <Container maxWidth="lg">
-        {/* رأس الصفحة */}
-        <Paper
+        {/* رأس الصفحة */}        <Paper
           elevation={0}
           sx={{
             p: 3,
             mb: 4,
             borderRadius: 3,
-            background: 'linear-gradient(135deg, #1e6f8e 0%, #134b60 100%)',
+            background: theme.palette.mode === 'light' 
+              ? 'linear-gradient(135deg, #1e6f8e 0%, #134b60 100%)'
+              : 'linear-gradient(135deg, #4a9fbe 0%, #1e6f8e 100%)',
             color: 'white',
             position: 'relative',
             overflow: 'hidden'
@@ -368,9 +370,8 @@ const ParentDashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="name" stroke="#888" />
                     <YAxis stroke="#888" />
-                    <RechartsTooltip />
-                    <Bar dataKey="الدرجة" fill="#1e6f8e" />
-                    <Bar dataKey="الحضور" fill="#4caf50" />
+                    <RechartsTooltip />                    <Bar dataKey="الدرجة" fill={theme.palette.mode === 'light' ? '#1e6f8e' : '#4a9fbe'} />
+                    <Bar dataKey="الحضور" fill={theme.palette.mode === 'light' ? '#4caf50' : '#66bb6a'} />
                   </BarChart>
                 </ResponsiveContainer>
               </Paper>
@@ -386,12 +387,11 @@ const ParentDashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="name" stroke="#888" />
                     <YAxis stroke="#888" />
-                    <RechartsTooltip />
-                    <Area 
+                    <RechartsTooltip />                    <Area 
                       type="monotone" 
                       dataKey="التقدم" 
-                      stroke="#1e6f8e" 
-                      fill={alpha('#1e6f8e', 0.3)} 
+                      stroke={theme.palette.mode === 'light' ? '#1e6f8e' : '#4a9fbe'}
+                      fill={alpha(theme.palette.mode === 'light' ? '#1e6f8e' : '#4a9fbe', 0.3)} 
                     />
                   </AreaChart>
                 </ResponsiveContainer>

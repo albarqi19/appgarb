@@ -1,12 +1,19 @@
-// filepath: c:\Users\ALBAR\���� ���\gharb-platform\src\App.tsx
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box, Toolbar, Container, Typography, GlobalStyles } from '@mui/material';
-import { AppProvider } from './context/AppContext';
+import { 
+  ThemeProvider, 
+  CssBaseline, 
+  Box, 
+  Toolbar, 
+  Container, 
+  Typography, 
+  GlobalStyles 
+} from '@mui/material';
+import { AppProvider, useAppContext } from './context/AppContext';
 import Header from './components/Header';
 import LoadingSpinner from './components/LoadingSpinner';
 import PageTransition from './components/PageTransition';
-import IslamicAlert from './components/IslamicAlert';
+import { clearOldAttendanceCache } from './services/attendanceService';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { prefixer } from 'stylis';
@@ -16,128 +23,285 @@ import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-sans-arabic/500.css';
 import '@fontsource/ibm-plex-sans-arabic/700.css';
 import './App.css';
-import theme from './theme/theme';
+import { darkTheme, lightTheme } from './theme/theme';
 
-// ������� ������� ������� ������ ������
+// تعريف الصفحات بالتحميل الكسول
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RoleSelectionPage = lazy(() => import('./pages/RoleSelectionPage'));
 const MosqueSelection = lazy(() => import('./pages/MosqueSelection'));
 const StudentsList = lazy(() => import('./pages/StudentsList'));
 const StudentDetails = lazy(() => import('./pages/StudentDetails'));
 const MemorizationOptions = lazy(() => import('./pages/MemorizationOptions'));
 const MemorizationSession = lazy(() => import('./pages/MemorizationSession'));
+const CreateRecitationSession = lazy(() => import('./pages/CreateRecitationSession'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
+const SupervisorDashboard = lazy(() => import('./pages/SupervisorDashboard'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
 const QuranPage = lazy(() => import('./pages/QuranPage'));
+const AttendanceLogPage = lazy(() => import('./pages/AttendanceLogPage'));
+const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
+const { PublicRoute } = require('./components/ProtectedRoute');
 
-// ����� ���� ������� �� ������ ��� ������
+// إنشاء كاش لدعم اللغة العربية واتجاه RTL
 const cacheRtl = createCache({
   key: 'muirtl',
   stylisPlugins: [prefixer, rtlPlugin],
 });
 
-function App() {
-  const [showWelcome, setShowWelcome] = useState(true);
-    
-  // ����� ����� ������� ��� ���� �����
+// المكون الرئيسي للتطبيق مع دعم السمة المظلمة
+const AppContent = () => {
+  const { themeMode } = useAppContext();
+
+  // تنظيف البيانات القديمة عند بدء التطبيق
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowWelcome(false);
-    }, 5000);
-    
-    return () => clearTimeout(timer);
+    clearOldAttendanceCache();
   }, []);
 
+  // تعيين سمة الوضع للعنصر HTML
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+  }, [themeMode]);
+
+  // استخدام الثيم المناسب حسب الوضع
+  const currentTheme = themeMode === 'dark' ? darkTheme : lightTheme;
+
+  return (
+    <ThemeProvider theme={currentTheme}>
+      <CssBaseline />
+      <GlobalStyles
+        styles={{
+          '*::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '*::-webkit-scrollbar-track': {
+            background: themeMode === 'dark' ? '#1a3251' : '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '*::-webkit-scrollbar-thumb': {
+            background: currentTheme.palette.primary.light,
+            borderRadius: '4px',
+            '&:hover': {
+              background: currentTheme.palette.primary.main,
+            },
+          },
+          'body': {
+            overscrollBehavior: 'none',
+          }
+        }}
+      />
+      
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Header />
+        <Box 
+          component="main" 
+          sx={{ 
+            flexGrow: 1,
+            pt: 4,
+            pb: 4,
+            backgroundImage: themeMode === 'light' 
+              ? 'linear-gradient(rgba(245, 249, 252, 0.9), rgba(245, 249, 252, 0.9)), url("/assets/islamic-pattern.svg")'
+              : 'linear-gradient(rgba(10, 25, 47, 0.97), rgba(10, 25, 47, 0.97)), url("/assets/islamic-pattern.svg")',
+            backgroundAttachment: 'fixed',
+            backgroundSize: '500px',
+            position: 'relative',
+          }}        >
+          <Toolbar /> {/* لإضافة مسافة تحت شريط التنقل */}
+          
+          <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+            <Suspense fallback={<LoadingSpinner message="جاري تحميل الصفحة..." />}>
+              <PageTransition>                <Routes>
+                  {/* صفحة تسجيل الدخول - للمستخدمين غير المسجلين */}
+                  <Route 
+                    path="/login" 
+                    element={
+                      <PublicRoute>
+                        <LoginPage />
+                      </PublicRoute>
+                    } 
+                  />
+                  
+                  {/* صفحة اختيار الدور - للمستخدمين متعددي الأدوار */}
+                  <Route 
+                    path="/role-selection" 
+                    element={
+                      <ProtectedRoute>
+                        <RoleSelectionPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* الصفحة الرئيسية - إعادة توجيه للدخول إذا غير مسجل */}
+                  <Route 
+                    path="/" 
+                    element={
+                      <ProtectedRoute requireAuth={false}>
+                        <Navigate to="/login" />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* صفحة اختيار المسجد - للمعلمين والمشرفين */}
+                  <Route 
+                    path="/mosque-selection" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'supervisor']}>
+                        <MosqueSelection />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* لوحات التحكم المختلفة */}
+                  <Route 
+                    path="/dashboard" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher']}>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/parent-dashboard" 
+                    element={
+                      <ProtectedRoute allowedRoles={['parent']}>
+                        <ParentDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/student-dashboard" 
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/supervisor-dashboard" 
+                    element={
+                      <ProtectedRoute allowedRoles={['supervisor']}>
+                        <SupervisorDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* صفحات الطلاب */}
+                  <Route 
+                    path="/students" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'supervisor']}>
+                        <StudentsList />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/students/:mosqueId" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'supervisor']}>
+                        <StudentsList />
+                      </ProtectedRoute>
+                    } 
+                  />                  <Route 
+                    path="/students/:studentId" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'supervisor', 'parent']}>
+                        <StudentDetails />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* صفحة سجل التحضير */}
+                  <Route 
+                    path="/attendance-log" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'supervisor']}>
+                        <AttendanceLogPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* صفحات التحفيظ */}
+                  <Route 
+                    path="/memorization-options" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'student']}>
+                        <MemorizationOptions />
+                      </ProtectedRoute>
+                    } 
+                  />                  <Route 
+                    path="/memorization-session" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher', 'student']}>
+                        <MemorizationSession />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/create-recitation-session" 
+                    element={
+                      <ProtectedRoute allowedRoles={['teacher']}>
+                        <CreateRecitationSession />
+                      </ProtectedRoute>
+                    } 
+                  />
+                    {/* صفحة القرآن */}
+                  <Route 
+                    path="/quran" 
+                    element={
+                      <ProtectedRoute>
+                        <QuranPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* صفحة الملف الشخصي */}
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <ProtectedRoute>
+                        <UserProfile />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* إعادة توجيه للصفحات غير الموجودة */}
+                  <Route path="*" element={<Navigate to="/login" />} />
+                </Routes>
+              </PageTransition>
+            </Suspense>
+          </Container>
+        </Box>
+        {/* Footer */}
+        <Box 
+          component="footer" 
+          sx={{ 
+            py: 3, 
+            textAlign: 'center', 
+            borderTop: `1px solid ${themeMode === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)'}`,
+            bgcolor: themeMode === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(10, 25, 47, 0.8)',
+            mt: 'auto' 
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            منصة غرب | منصة متابعة تحفيظ القرآن الكريم
+          </Typography>
+        </Box>
+      </Box>
+    </ThemeProvider>
+  );
+};
+
+// مكون التطبيق الرئيسي
+function App() {
   return (
     <CacheProvider value={cacheRtl}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <GlobalStyles
-          styles={{
-            '*::-webkit-scrollbar': {
-              width: '8px',
-              height: '8px',
-            },
-            '*::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '4px',
-            },
-            '*::-webkit-scrollbar-thumb': {
-              background: theme.palette.primary.light,
-              borderRadius: '4px',
-              '&:hover': {
-                background: theme.palette.primary.main,
-              },
-            },
-            'body': {
-              overscrollBehavior: 'none',
-            }
-          }}
-        />
-        <AppProvider>
-          <Router>
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-              <Header />
-              <Box 
-                component="main" 
-                sx={{ 
-                  flexGrow: 1,
-                  pt: 4,
-                  pb: 4,
-                  backgroundImage: 'linear-gradient(rgba(245, 249, 252, 0.9), rgba(245, 249, 252, 0.9)), url("/assets/islamic-pattern.svg")',
-                  backgroundAttachment: 'fixed',
-                  backgroundSize: '500px',
-                  position: 'relative',
-                }}
-              >
-                <Toolbar /> {/* لإضافة مسافة تحت شريط التنقل */}
-                
-                {showWelcome && (
-                  <Box sx={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 999, px: 2 }}>
-                    <IslamicAlert
-                      title="مرحباً بك في منصة غرب"
-                      message="منصة متخصصة في متابعة تقدم الطلاب بالمدارس القرآنية. تم تصميم المنصة لمساعدة المعلمين وأولياء الأمور."
-                      severity="achievement"
-                      autoHideDuration={5000}
-                    />
-                  </Box>
-                )}
-                
-                <Container maxWidth={false}>
-                  <Suspense fallback={<LoadingSpinner message="جاري تحميل الصفحة..." />}>
-                    <PageTransition>
-                      <Routes>
-                        <Route path="/" element={<MosqueSelection />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/parent-dashboard" element={<ParentDashboard />} />
-                        <Route path="/students" element={<StudentsList />} />
-                        <Route path="/students/:studentId" element={<StudentDetails />} />
-                        <Route path="/memorization-options" element={<MemorizationOptions />} />
-                        <Route path="/memorization-session" element={<MemorizationSession />} />
-                        <Route path="/quran" element={<QuranPage />} />
-                        <Route path="*" element={<Navigate to="/" />} />
-                      </Routes>
-                    </PageTransition>
-                  </Suspense>
-                </Container>
-              </Box>
-              {/* Footer */}
-              <Box 
-                component="footer" 
-                sx={{ 
-                  py: 3, 
-                  textAlign: 'center', 
-                  borderTop: '1px solid rgba(0,0,0,0.08)',
-                  bgcolor: 'rgba(255,255,255,0.7)',
-                  mt: 'auto' 
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  منصة غرب | منصة متابعة تحفيظ القرآن الكريم
-                </Typography>
-              </Box>
-            </Box>
-          </Router>
-        </AppProvider>
-      </ThemeProvider>
+      <AppProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AppProvider>
     </CacheProvider>
   );
 }

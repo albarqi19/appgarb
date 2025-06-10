@@ -16,6 +16,19 @@
   --transition-main: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* متغيرات الوضع المظلم */
+html[data-theme='dark'] {
+  --main-bg-color: #0a192f;
+  --primary-color: #4a9fbe;
+  --primary-light: #1e6f8e;
+  --primary-dark: #63ccff;
+  --text-primary: #e6f1ff;
+  --text-secondary: #a8b2d1;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.25);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.3);
+}
+
 body {
   margin: 0;
   font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

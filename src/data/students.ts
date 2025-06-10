@@ -1,7 +1,9 @@
 // بيانات الطلاب
 export interface StudentAttendance {
   date: string;
-  status: 'حاضر' | 'غائب';
+  status: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن';
+  time?: string;
+  notes?: string;
 }
 
 export interface MemorizationError {
@@ -28,6 +30,7 @@ export interface Student {
   name: string;
   age: number;
   mosqueId: string;
+  circleId?: string; // معرف الحلقة التي ينتمي إليها الطالب
   level: string;
   attendanceRate: number;
   attendance: StudentAttendance[];
@@ -42,12 +45,12 @@ export interface Student {
   parentPhone?: string;
 }
 
-export const students: Student[] = [
-  {
+export const students: Student[] = [  {
     id: '1',
     name: 'أحمد محمد العمري',
     age: 12,
     mosqueId: '1',
+    circleId: '1', // حلقة الفجر - المعلم أحمد محمد العمري
     level: 'متوسط',
     attendanceRate: 95,
     attendance: [
@@ -81,12 +84,12 @@ export const students: Student[] = [
     totalScore: 85,
     phone: '05XXXXXXXX',
     parentPhone: '05XXXXXXXX'
-  },
-  {
+  },  {
     id: '2',
     name: 'خالد سعد القحطاني',
     age: 14,
     mosqueId: '1',
+    circleId: '3', // حلقة العصر المتقدمة - المعلم محمد عبدالله الشهري
     level: 'متقدم',
     attendanceRate: 87,
     attendance: [
@@ -119,12 +122,12 @@ export const students: Student[] = [
     totalScore: 92,
     phone: '05XXXXXXXX',
     parentPhone: '05XXXXXXXX'
-  },
-  {
+  },  {
     id: '3',
     name: 'عبدالرحمن ناصر السلمي',
     age: 10,
     mosqueId: '1',
+    circleId: '2', // حلقة المغرب - المعلم أحمد محمد العمري (معرف 1)
     level: 'مبتدئ',
     attendanceRate: 90,
     attendance: [

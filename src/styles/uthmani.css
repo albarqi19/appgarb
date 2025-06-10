@@ -152,6 +152,47 @@
   color: #1976d2;
 }
 
+/* تنسيقات خاصة للتشكيل - التأكد من أن التشكيل يحافظ على لون النص الأساسي */
+.uthmani-word {
+  /* نضمن أن التشكيل يرث لون النص */
+  color: inherit;
+}
+
+/* عند وجود خطأ، التشكيل أيضاً يأخذ نفس لون الخطأ */
+.uthmani-word.error-word {
+  color: #d32f2f;
+}
+
+.uthmani-word.warning-word {
+  color: #f57c00;
+}
+
+.uthmani-word.info-word {
+  color: #1976d2;
+}
+
+/* تأكيد أن كل أجزاء النص (بما في ذلك التشكيل) تأخذ نفس اللون */
+.uthmani-word,
+.uthmani-word * {
+  color: inherit !important;
+}
+
+/* في حالة الأخطاء، نطبق اللون على جميع عناصر الكلمة */
+.uthmani-word.error-word,
+.uthmani-word.error-word * {
+  color: #d32f2f !important;
+}
+
+.uthmani-word.warning-word,
+.uthmani-word.warning-word * {
+  color: #f57c00 !important;
+}
+
+.uthmani-word.info-word,
+.uthmani-word.info-word * {
+  color: #1976d2 !important;
+}
+
 /* تأثيرات خاصة */
 .uthmani-highlight {
   background-color: rgba(255, 235, 59, 0.3);
