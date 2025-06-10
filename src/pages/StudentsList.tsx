@@ -36,6 +36,7 @@ import { Student, StudentAttendance } from '../data/students';
 import { studentAnalytics } from '../data/ai-insights';
 import { getMosqueStudents, getTeacherStudents, getTeacherMosqueStudents, getTeacherStudentsViaCircles, StudentWithMosque } from '../services/authService';
 import AttendanceManager from '../components/AttendanceManager';
+import StudentAbsentAlert from '../components/StudentAbsentAlert';
 import { getTodayAttendance, forceRefreshAttendance } from '../services/attendanceService';
 import PersonIcon from '@mui/icons-material/Person';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -68,7 +69,13 @@ const StudentsList: React.FC = () => {
   const [sortBy, setSortBy] = useState('name');
   const [filterLevel, setFilterLevel] = useState('all');
   const [activeTab, setActiveTab] = useState(0);  const [hasTeacherCircles, setHasTeacherCircles] = useState<boolean | null>(null);
-  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);  const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+    // حالات نافذة تنبيه الحضور
+  const [absentAlertOpen, setAbsentAlertOpen] = useState(false);
+  const [selectedStudentForAlert, setSelectedStudentForAlert] = useState<Student | null>(null);
+  const [alertAttendanceStatus, setAlertAttendanceStatus] = useState<'غائب' | 'مستأذن'>('غائب');
+
+  const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   
   // مرجع لمنع التحميل المضاعف
@@ -217,30 +224,46 @@ const StudentsList: React.FC = () => {
           return 0;
       }
     });
-  };
-  // تعامل مع اختيار الطالب للتسميع
+  };  // تعامل مع اختيار الطالب للتسميع
   const handleStudentSelection = (student: Student) => {
     const attendanceStatus = getAttendanceStatus(student);
     
-    // منع الدخول للطلاب الغائبين
+    // منع الدخول للطلاب الغائبين فقط
     if (attendanceStatus === 'غائب') {
-      alert('لا يمكن الدخول للتسميع. الطالب غائب اليوم.');
+      setSelectedStudentForAlert(student);
+      setAlertAttendanceStatus('غائب');
+      setAbsentAlertOpen(true);
       return;
     }
     
-    // تحذير للطلاب المتأخرين أو المستأذنين
-    if (attendanceStatus === 'متأخر') {
-      const confirm = window.confirm('الطالب متأخر اليوم. هل تريد المتابعة للتسميع؟');
-      if (!confirm) return;
-    }
-    
+    // تحذير للطلاب المستأذنين فقط (المتأخرون يمكنهم المتابعة مباشرة)
     if (attendanceStatus === 'مستأذن') {
-      const confirm = window.confirm('الطالب مستأذن اليوم. هل تريد المتابعة للتسميع؟');
-      if (!confirm) return;
+      setSelectedStudentForAlert(student);
+      setAlertAttendanceStatus('مستأذن');
+      setAbsentAlertOpen(true);
+      return;
     }
-    
+
+    // المتابعة للطلاب الحاضرين والمتأخرين مباشرة
     setSelectedStudent(student);
     navigate('/memorization-options');
+  };
+
+  // المتابعة للتسميع رغم التأخير أو الاستئذان
+  const handleContinueToMemorization = () => {
+    if (selectedStudentForAlert) {
+      setSelectedStudent(selectedStudentForAlert);
+      setAbsentAlertOpen(false);
+      setSelectedStudentForAlert(null);
+      navigate('/memorization-options');
+    }
+  };
+
+  // فتح نافذة التحضير من تنبيه الحضور
+  const handleOpenAttendanceFromAlert = () => {
+    setAbsentAlertOpen(false);
+    setSelectedStudentForAlert(null);
+    setAttendanceDialogOpen(true);
   };// تعامل مع تغيير حالة الحضور
   const handleAttendanceToggle = (event: React.MouseEvent, studentId: string) => {
     event.stopPropagation();
@@ -1121,15 +1144,27 @@ const StudentsList: React.FC = () => {
           >
             <AssignmentIcon />
           </Fab>
-        )}
-
-        {/* نافذة إدارة التحضير */}
+        )}        {/* نافذة إدارة التحضير */}
         <AttendanceManager
           open={attendanceDialogOpen}
           onClose={handleCloseAttendance}
           students={filteredStudents}
           teacherId={user?.id?.toString() || ''}
           onSuccess={handleAttendanceSuccess}
+          initialAttendance={todayAttendance}
+        />
+
+        {/* نافذة تنبيه حالة الحضور */}
+        <StudentAbsentAlert
+          open={absentAlertOpen}
+          onClose={() => {
+            setAbsentAlertOpen(false);
+            setSelectedStudentForAlert(null);
+          }}
+          onOpenAttendance={handleOpenAttendanceFromAlert}
+          studentName={selectedStudentForAlert?.name || ''}
+          attendanceStatus={alertAttendanceStatus}
+          onContinue={alertAttendanceStatus !== 'غائب' ? handleContinueToMemorization : undefined}
         />
       </Container>
     </Box>

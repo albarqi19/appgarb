@@ -16,17 +16,25 @@
 /* تنسيقات للنص العثماني */
 .uthmani-text {
   font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Noto Naskh Arabic', Arial, sans-serif !important;
-  font-size: 28px;
-  line-height: 2.5;
-  text-align: right;
-  direction: rtl;
-  font-weight: 400;
-  letter-spacing: 0.5px;
-  word-spacing: 6px;
-  color: #2c3e50;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  font-size: 32px !important;
+  line-height: 2.5 !important;
+  text-align: right !important;
+  direction: rtl !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.5px !important;
+  word-spacing: 8px !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* ألوان النص حسب الوضع */
+[data-theme='light'] .uthmani-text {
+  color: #2c3e50 !important;
+}
+
+[data-theme='dark'] .uthmani-text {
+  color: #b8c6db !important;
 }
 
 .uthmani-text-large {
@@ -55,10 +63,18 @@
   transition: all 0.2s ease;
   position: relative;
   font-size: inherit;
-  color: inherit;
   text-decoration: none;
   background: transparent;
   border: 1px solid transparent;
+}
+
+/* ألوان الكلمات حسب الوضع */
+[data-theme='light'] .uthmani-word {
+  color: #2c3e50;
+}
+
+[data-theme='dark'] .uthmani-word {
+  color: #b8c6db;
 }
 
 .uthmani-word:hover {
@@ -230,4 +246,41 @@
 .uthmani-word {
   font-feature-settings: "liga" 1, "calt" 1, "kern" 1;
   font-variant-ligatures: common-ligatures;
+}
+
+/* تحسينات خاصة للوضع الداكن */
+[data-theme='dark'] .uthmani-text {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .uthmani-word:hover {
+  background-color: rgba(75, 159, 190, 0.15) !important;
+  border-color: rgba(75, 159, 190, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* تحسين قراءة الأخطاء في الوضع الداكن */
+[data-theme='dark'] .uthmani-word.error-word,
+[data-theme='dark'] .uthmani-word.error-word * {
+  color: #ff6b6b !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .uthmani-word.warning-word,
+[data-theme='dark'] .uthmani-word.warning-word * {
+  color: #ffd93d !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .uthmani-word.info-word,
+[data-theme='dark'] .uthmani-word.info-word * {
+  color: #74c0fc !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* تحسين الاختيار في الوضع الداكن */
+[data-theme='dark'] .uthmani-text::selection,
+[data-theme='dark'] .uthmani-word::selection {
+  background: rgba(75, 159, 190, 0.4);
+  color: #ffffff;
 }

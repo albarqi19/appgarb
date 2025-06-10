@@ -39,6 +39,7 @@ interface AttendanceManagerProps {
   students: Student[];
   teacherId: string;
   onSuccess?: () => void;
+  initialAttendance?: {[studentName: string]: AttendanceStatus}; // البيانات المجلبة مسبقاً
 }
 
 interface StudentAttendanceState {
@@ -52,24 +53,45 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
   onClose,
   students,
   teacherId,
-  onSuccess
+  onSuccess,
+  initialAttendance = {}
 }) => {
   const theme = useTheme();
   const [attendanceStates, setAttendanceStates] = useState<StudentAttendanceState[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  // تهيئة حالات الحضور للطلاب
+  const [submitError, setSubmitError] = useState<string | null>(null);  // تهيئة حالات الحضور للطلاب باستخدام البيانات المجلبة مسبقاً
   useEffect(() => {
     if (students.length > 0) {
-      const initialStates = students.map(student => ({
-        studentId: student.id,
-        status: student.attendance[0]?.status || 'حاضر' as AttendanceStatus,
-        notes: ''
-      }));
+      console.log('🎯 تهيئة مدير التحضير مع البيانات المجلبة مسبقاً:', initialAttendance);
+      console.log('📋 عدد الطلاب:', students.length);
+      console.log('📊 عدد البيانات المجلبة:', Object.keys(initialAttendance).length);
+      
+      const initialStates = students.map(student => {
+        // استخدام البيانات المجلبة مسبقاً أولاً، ثم البيانات المحلية، ثم "حاضر" كقيمة افتراضية
+        const attendanceStatus = initialAttendance[student.name] || 
+                                student.attendance[0]?.status || 
+                                'حاضر' as AttendanceStatus;
+        
+        const sourceMessage = initialAttendance[student.name] ? 
+          `🔗 من البيانات المجلبة (${initialAttendance[student.name]})` : 
+          student.attendance[0]?.status ? 
+            `📁 من البيانات المحلية (${student.attendance[0].status})` : 
+            '⚡ افتراضي (حاضر)';
+            
+        console.log(`  👤 ${student.name}: ${attendanceStatus} ${sourceMessage}`);
+        
+        return {
+          studentId: student.id,
+          status: attendanceStatus,
+          notes: ''
+        };
+      });
+      
       setAttendanceStates(initialStates);
+      console.log('✅ تم تهيئة حالات التحضير بنجاح');
     }
-  }, [students]);
+  }, [students, initialAttendance]);
 
   // إعادة تعيين الحالة عند إغلاق النافذة
   useEffect(() => {
@@ -190,17 +212,33 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
           color: 'white',
           position: 'relative'
         }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      >        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h6" fontWeight="bold">
               تحضير الطلاب
+              {Object.keys(initialAttendance).length > 0 && (
+                <Chip 
+                  label="محدث" 
+                  size="small" 
+                  sx={{ 
+                    ml: 1, 
+                    bgcolor: 'rgba(255,255,255,0.2)', 
+                    color: 'white',
+                    fontSize: '0.7rem'
+                  }} 
+                />
+              )}
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
               {new Date().toLocaleDateString('ar-SA')} - {new Date().toLocaleTimeString('ar-SA', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
+              {Object.keys(initialAttendance).length > 0 && (
+                <Typography component="span" sx={{ opacity: 0.8, ml: 1, fontSize: '0.8rem' }}>
+                  • البيانات محملة من الخادم
+                </Typography>
+              )}
             </Typography>
           </Box>
           <IconButton onClick={onClose} sx={{ color: 'white' }}>

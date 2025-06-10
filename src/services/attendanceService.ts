@@ -19,7 +19,7 @@ export interface AttendanceRecord {
 export interface AttendanceSubmission {
   student_name: string;  // اسم الطالب مطلوب
   date: string;         // تاريخ بصيغة Y-m-d
-  status: 'present' | 'absent' | 'late' | 'excused';  // القيم الإنجليزية
+  status: 'present' | 'absent' | 'late' | 'excused';  // القيم المقبولة من الخادم
   period: string;       // الفترة (العصر، المغرب، إلخ)
   notes?: string;       // ملاحظات اختيارية
 }
@@ -37,13 +37,13 @@ export interface AttendanceResponse {
   errors?: any;
 }
 
-// تحويل حالة الحضور من العربية إلى الإنجليزية
+// تحويل حالة الحضور من العربية إلى الإنجليزية (للإرسال للخادم)
 export const convertStatusToEnglish = (arabicStatus: AttendanceStatus): 'present' | 'absent' | 'late' | 'excused' => {
   switch (arabicStatus) {
     case 'حاضر': return 'present';
     case 'غائب': return 'absent';
     case 'متأخر': return 'late';
-    case 'مستأذن': return 'excused';
+    case 'مستأذن': return 'excused'; // الخادم يقبل "excused" بالإنجليزية
     default: return 'present';
   }
 };
@@ -55,12 +55,11 @@ export const convertStatusToArabic = (englishStatus: string): AttendanceStatus =
   
   switch (cleanStatus) {
     case 'present': return 'حاضر';
-    case 'absent': return 'غائب';
-    case 'late': return 'متأخر';
-    case 'excused': return 'مستأذن';
-    
-    // حالات إضافية قد ترد من API
+    case 'absent': return 'غائب';    case 'late': return 'متأخر';
+    case 'excused': return 'مستأذن'; // للتوافق مع البيانات القديمة
+      // حالات إضافية قد ترد من API
     case 'معذور': return 'مستأذن'; // بعض الأنظمة تستخدم "معذور"
+    case 'مأذون': return 'مستأذن'; // الخادم يرجع "مأذون"
     case 'مبرر': return 'مستأذن';
     case 'إجازة': return 'مستأذن';
     
@@ -182,50 +181,65 @@ export const updateStudentAttendance = async (
   }
 };
 
-// إرسال التحضير المتعدد للطلاب
-export const recordBulkAttendance = async (
+// إرسال التحضير المتعدد للطلاب بطريقة محسّنة (إرسال واحد)
+export const recordBulkAttendanceFast = async (
   students: { name: string; status: AttendanceStatus; notes?: string }[],
   period: string = 'العصر'
 ): Promise<{ success: boolean; results: any[] }> => {
   try {
-    const date = new Date().toISOString().split('T')[0];
-    const results = [];
-    
-    console.log('إرسال تحضير متعدد للطلاب:', students.length, 'طالب');
-    
-    // إرسال كل طالب على حدة (كما يتوقع API)
-    for (const student of students) {
-      const attendanceData: AttendanceSubmission = {
+    const date = getTodayDate();
+    console.log('🚀 إرسال تحضير جماعي محسّن لـ', students.length, 'طالب في طلب واحد');
+
+    // تحضير البيانات للإرسال الجماعي
+    const bulkData: BulkAttendanceSubmission = {
+      students: students.map(student => ({
         student_name: student.name,
         date: date,
         status: convertStatusToEnglish(student.status),
         period: period,
         notes: student.notes || `تحضير ${student.status}`
-      };
-      
-      const success = await recordSingleAttendance(attendanceData);
-      results.push({
-        studentName: student.name,
-        success: success,
-        status: student.status
-      });
-      
-      // انتظار قصير بين كل طلب لتجنب إغراق الخادم
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const successCount = results.filter(r => r.success).length;
-    const totalCount = results.length;
-    
-    console.log(`نتائج التحضير المتعدد: ${successCount}/${totalCount} نجح`);
-    
-    return {
-      success: successCount === totalCount,
-      results: results
+      }))
     };
-    
+
+    console.log('📤 إرسال طلب جماعي واحد:', bulkData);
+
+    // محاولة إرسال جماعي أولاً
+    try {
+      const response = await fetch(`${API_BASE_URL}/attendance/bulk`, {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify(bulkData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ نجح الإرسال الجماعي:', data);
+        
+        // إنشاء نتائج موحدة
+        const results = students.map(student => ({
+          studentName: student.name,
+          success: true,
+          status: student.status,
+          action: 'تم بنجاح (جماعي)'
+        }));
+
+        return {
+          success: true,
+          results: results
+        };
+      } else {
+        console.warn('⚠️ فشل الإرسال الجماعي:', response.status, '- سيتم التراجع للإرسال المتتالي');
+        throw new Error('Bulk endpoint failed');
+      }
+    } catch (bulkError) {
+      console.warn('⚠️ الإرسال الجماعي غير متوفر، استخدام الطريقة المتتالية السريعة...');
+      
+      // التراجع للطريقة المتتالية بدون انتظار
+      return await recordBulkAttendanceSequential(students, period);
+    }
+
   } catch (error) {
-    console.error('خطأ في إرسال التحضير المتعدد:', error);
+    console.error('💥 خطأ في إرسال التحضير الجماعي:', error);
     return {
       success: false,
       results: []
@@ -233,7 +247,76 @@ export const recordBulkAttendance = async (
   }
 };
 
-// للتوافق مع النظام القديم
+// إرسال متتالي بدون انتظار (للتراجع)
+export const recordBulkAttendanceSequential = async (
+  students: { name: string; status: AttendanceStatus; notes?: string }[],
+  period: string = 'العصر'
+): Promise<{ success: boolean; results: any[] }> => {
+  try {
+    const date = getTodayDate();
+    console.log('⚡ إرسال متتالي سريع (بدون انتظار) لـ', students.length, 'طالب');
+
+    // إرسال جميع الطلاب بشكل متوازي (بدون انتظار)
+    const promises = students.map(async (student) => {
+      const attendanceData: AttendanceSubmission = {
+        student_name: student.name,
+        date: date,
+        status: convertStatusToEnglish(student.status),
+        period: period,
+        notes: student.notes || `تحضير ${student.status}`
+      };
+
+      try {
+        const success = await recordOrUpdateAttendance(attendanceData);
+        return {
+          studentName: student.name,
+          success: success,
+          status: student.status,
+          action: success ? 'تم بنجاح (متوازي)' : 'فشل'
+        };
+      } catch (error) {
+        console.error(`❌ خطأ في إرسال ${student.name}:`, error);
+        return {
+          studentName: student.name,
+          success: false,
+          status: student.status,
+          action: 'فشل'
+        };
+      }
+    });
+
+    // انتظار جميع الطلبات في نفس الوقت
+    const results = await Promise.all(promises);
+    
+    const successCount = results.filter(r => r.success).length;
+    const totalCount = results.length;
+    
+    console.log(`📊 نتائج الإرسال المتوازي: ${successCount}/${totalCount} نجح`);
+    
+    return {
+      success: successCount === totalCount,
+      results: results
+    };
+
+  } catch (error) {
+    console.error('💥 خطأ في الإرسال المتوازي:', error);
+    return {
+      success: false,
+      results: []
+    };
+  }
+};
+
+// للتوافق مع النظام القديم - نسخة محسنة
+export const recordBulkAttendance = async (
+  students: { name: string; status: AttendanceStatus; notes?: string }[],
+  period: string = 'العصر'
+): Promise<{ success: boolean; results: any[] }> => {
+  // استخدام النظام المحسن الجديد
+  return await recordBulkAttendanceFast(students, period);
+};
+
+// دالة التوافق القديمة
 export const recordAttendance = recordBulkAttendance;
 
 // الدوال المساعدة للتعامل مع التاريخ
@@ -770,57 +853,25 @@ export const recordOrUpdateAttendance = async (attendance: AttendanceSubmission)
   }
 };
 
-// تحديث دالة التحضير المتعدد لاستخدام النظام الجديد
+// تحديث دالة التحضير المتعدد لاستخدام النظام المحسن
 export const recordBulkAttendanceWithUpdate = async (
   students: { name: string; status: AttendanceStatus; notes?: string }[],
   period: string = 'العصر'
 ): Promise<{ success: boolean; results: any[] }> => {
   try {
-    const date = getTodayDate(); // استخدام دالة التاريخ المحسنة
-    const results = [];
+    console.log('🚀 استخدام النظام المحسن للتحضير الجماعي');
     
-    console.log('🔄 إرسال تحضير متعدد للطلاب لتاريخ:', date, '- عدد الطلاب:', students.length);
+    // استخدام الدالة المحسنة الجديدة
+    const result = await recordBulkAttendanceFast(students, period);
     
-    // إرسال كل طالب على حدة مع التحقق من التاريخ
-    for (const student of students) {
-      console.log(`📝 معالجة الطالب: ${student.name} - الحالة: ${student.status}`);
-      
-      const attendanceData: AttendanceSubmission = {
-        student_name: student.name,
-        date: date,
-        status: convertStatusToEnglish(student.status),
-        period: period,
-        notes: student.notes || `تحضير ${student.status}`
-      };
-      
-      const success = await recordOrUpdateAttendance(attendanceData);
-      results.push({
-        studentName: student.name,
-        success: success,
-        status: student.status,
-        action: success ? 'تم بنجاح' : 'فشل'
-      });
-      
-      console.log(`${success ? '✅' : '❌'} ${student.name}: ${success ? 'تم' : 'فشل'}`);
-      
-      // انتظار قصير بين كل طلب
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-      const successCount = results.filter(r => r.success).length;
-    const totalCount = results.length;
-      console.log(`📊 نتائج التحضير المتعدد الذكي: ${successCount}/${totalCount} نجح`);
-    
-    // امسح التخزين المحلي في جميع الحالات لضمان جلب البيانات المحدثة
+    // مسح التخزين المحلي لضمان جلب البيانات المحدثة
     console.log('🧹 مسح التخزين المحلي لضمان جلب البيانات المحدثة');
     clearOldAttendanceCache();
     
-    return {
-      success: successCount === totalCount,
-      results: results
-    };
+    return result;
     
   } catch (error) {
-    console.error('💥 خطأ في إرسال التحضير المتعدد الذكي:', error);
+    console.error('💥 خطأ في إرسال التحضير المتعدد المحسن:', error);
     return {
       success: false,
       results: []

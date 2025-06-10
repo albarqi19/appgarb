@@ -848,33 +848,51 @@ const MemorizationSession: React.FC = () => {
                 overflow: 'hidden',
                 boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
               }}
-            >
-              <Box 
+            >              <Box 
                 sx={{ 
                   p: 2,
                   display: 'flex',
                   alignItems: 'center',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  bgcolor: isSessionStarted ? 'primary.light' : 'background.default'
+                  bgcolor: isSessionStarted 
+                    ? (theme.palette.mode === 'light' ? 'primary.light' : 'primary.dark')
+                    : (theme.palette.mode === 'light' ? 'background.default' : 'background.paper'),
+                  borderRadius: '12px 12px 0 0',
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderBottom: `1px solid ${theme.palette.divider}`
                 }}
               >
-                <FormatQuoteIcon sx={{ mr: 1, transform: 'rotate(180deg)' }} color="primary" />
-                <Typography variant="h6" color={isSessionStarted ? 'primary.dark' : 'inherit'}>
+                <FormatQuoteIcon 
+                  sx={{ 
+                    mr: 1, 
+                    transform: 'rotate(180deg)',
+                    color: isSessionStarted ? 'primary.contrastText' : 'primary.main'
+                  }} 
+                />
+                <Typography 
+                  variant="h6" 
+                  sx={{
+                    color: isSessionStarted 
+                      ? 'primary.contrastText'
+                      : (theme.palette.mode === 'light' ? 'text.primary' : 'text.primary'),
+                    fontWeight: 'medium'
+                  }}
+                >
                   نص التسميع
                 </Typography>
-              </Box>
-              
-              <Box 
+              </Box><Box 
                 sx={{ 
                   p: 4, 
-                  backgroundColor: '#fdfdfd', 
+                  backgroundColor: theme.palette.mode === 'light' 
+                    ? '#fdfdfd' 
+                    : theme.palette.background.default,
                   direction: 'rtl',
                   position: 'relative',
-                  minHeight: 400
+                  minHeight: 400,
+                  borderRadius: '0 0 12px 12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderTop: 'none'
                 }}
-              >
-                {!isSessionStarted && (
+              >                {!isSessionStarted && (
                   <Box 
                     sx={{ 
                       position: 'absolute',
@@ -886,30 +904,69 @@ const MemorizationSession: React.FC = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      bgcolor: 'rgba(255, 255, 255, 0.8)',
+                      bgcolor: theme.palette.mode === 'light' 
+                        ? 'rgba(255, 255, 255, 0.85)' 
+                        : 'rgba(17, 34, 64, 0.90)',
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.divider}`,
+                      boxShadow: theme.palette.mode === 'light' 
+                        ? '0 4px 20px rgba(0, 0, 0, 0.1)' 
+                        : '0 4px 20px rgba(0, 0, 0, 0.3)',
                       zIndex: 1
                     }}
                   >
-                    <PlayArrowIcon sx={{ fontSize: 60, color: 'primary.light', mb: 2 }} />
-                    <Typography variant="h6" color="primary" gutterBottom>
+                    <PlayArrowIcon 
+                      sx={{ 
+                        fontSize: 60, 
+                        color: 'primary.main', 
+                        mb: 2,
+                        filter: theme.palette.mode === 'dark' ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' : 'none'
+                      }} 
+                    />
+                    <Typography 
+                      variant="h6" 
+                      color="primary" 
+                      gutterBottom
+                      sx={{
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        textShadow: theme.palette.mode === 'dark' ? '0 1px 2px rgba(0,0,0,0.7)' : 'none'
+                      }}
+                    >
                       اضغط على "بدء التسميع" لتبدأ الجلسة
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{
+                        textAlign: 'center',
+                        opacity: 0.9,
+                        textShadow: theme.palette.mode === 'dark' ? '0 1px 2px rgba(0,0,0,0.7)' : 'none'
+                      }}
+                    >
                       يمكنك النقر على الكلمات لتسجيل الأخطاء أثناء التسميع
                     </Typography>
                   </Box>
                 )}                {currentSurah && currentAyahs.length > 0 ? (
                   <Paper 
-                    elevation={0} 
+                    elevation={theme.palette.mode === 'light' ? 0 : 2} 
                     sx={{ 
                       p: 4,
                       borderRadius: 2, 
-                      bgcolor: 'background.paper',
+                      bgcolor: theme.palette.mode === 'light' 
+                        ? 'background.paper' 
+                        : 'rgba(17, 34, 64, 0.6)',
                       border: '1px solid',
-                      borderColor: 'divider'
+                      borderColor: theme.palette.mode === 'light' 
+                        ? 'divider' 
+                        : 'rgba(75, 159, 190, 0.2)',
+                      backdropFilter: theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
+                      boxShadow: theme.palette.mode === 'dark' 
+                        ? '0 4px 20px rgba(0, 0, 0, 0.3)' 
+                        : 'none'
                     }}
-                  >
-                    <Box 
+                  >                    <Box 
                       className="uthmani-text"
                       sx={{ 
                         lineHeight: 2.5, 
@@ -918,7 +975,8 @@ const MemorizationSession: React.FC = () => {
                         fontFamily: '"Amiri Quran", "KFGQPC Uthmanic Script HAFS", "Noto Naskh Arabic", serif',
                         letterSpacing: '0.5px',
                         wordSpacing: '6px',
-                        direction: 'rtl'
+                        direction: 'rtl',
+                        color: theme.palette.mode === 'light' ? '#2c3e50' : '#b8c6db'
                       }}
                     >
                       {currentAyahs.map((ayah, ayahIndex) => (
@@ -954,8 +1012,7 @@ const MemorizationSession: React.FC = () => {
                               </Box>
                             </Tooltip>
                           ))}
-                          
-                          {/* رقم الآية - دائري مع تصميم جميل */}
+                            {/* رقم الآية - دائري مع تصميم جميل */}
                           <Box
                             component="span"
                             sx={{
@@ -967,14 +1024,18 @@ const MemorizationSession: React.FC = () => {
                               borderRadius: '50%',
                               border: '2px solid',
                               borderColor: 'primary.main',
-                              color: 'primary.main',
-                              backgroundColor: 'background.paper',
+                              color: theme.palette.mode === 'light' ? 'primary.main' : 'primary.light',
+                              backgroundColor: theme.palette.mode === 'light' 
+                                ? 'background.paper' 
+                                : 'rgba(17, 34, 64, 0.9)',
                               fontSize: '0.8rem',
                               fontWeight: 'bold',
                               mx: 1.5,
                               my: 0.5,
                               fontFamily: 'Arial, sans-serif',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              boxShadow: theme.palette.mode === 'light' 
+                                ? '0 1px 3px rgba(0,0,0,0.1)' 
+                                : '0 2px 6px rgba(0,0,0,0.4)',
                               verticalAlign: 'middle'
                             }}
                           >
@@ -994,35 +1055,41 @@ const MemorizationSession: React.FC = () => {
                       لا توجد آيات متاحة لهذه السورة
                     </Typography>
                   </Box>
-                )}
-
-                {/* زر إنهاء الجلسة أسفل الآيات - يظهر فقط أثناء التسميع */}
+                )}                {/* زر إنهاء الجلسة أسفل الآيات - يظهر فقط أثناء التسميع */}
                 {isSessionStarted && (
-                  <Box sx={{ mt: 4, mb: 3, textAlign: 'center' }}>
+                  <Box sx={{ mt: 3, mb: 2, textAlign: 'center' }}>
                     <Button
                       variant="contained"
                       color="error"
-                      size="large"
+                      size="small"
                       startIcon={<StopIcon />}
                       onClick={handleFinishSession}
                       sx={{ 
-                        px: 4,
-                        py: 1.5,
-                        borderRadius: 3,
-                        boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold',
+                        px: 3,
+                        py: 1,
+                        borderRadius: 2,
+                        fontSize: '0.9rem',
+                        fontWeight: 'medium',
+                        minWidth: 160,
+                        boxShadow: theme.palette.mode === 'light' 
+                          ? '0 2px 8px rgba(244, 67, 54, 0.25)' 
+                          : '0 2px 10px rgba(244, 67, 54, 0.3)',
                         '&:hover': {
-                          boxShadow: '0 6px 16px rgba(244, 67, 54, 0.4)',
+                          boxShadow: theme.palette.mode === 'light' 
+                            ? '0 4px 12px rgba(244, 67, 54, 0.35)' 
+                            : '0 4px 14px rgba(244, 67, 54, 0.4)',
                           transform: 'translateY(-1px)'
                         },
-                        transition: 'all 0.3s ease'
+                        '&:active': {
+                          transform: 'translateY(0)'
+                        },
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      إنهاء جلسة التسميع
+                      إنهاء التسميع
                     </Button>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                      اضغط هنا عند الانتهاء من تسميع آخر آية
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.75rem' }}>
+                      اضغط عند الانتهاء
                     </Typography>
                   </Box>
                 )}
