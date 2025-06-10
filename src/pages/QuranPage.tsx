@@ -27,7 +27,6 @@ import {
 import { styled } from '@mui/material/styles';
 import UthmaniReader from '../components/UthmaniReader';
 import QuranSearch from '../components/QuranSearch';
-import FontTest from '../components/FontTest';
 import {
   uthmaniSurahs,
   UthmaniSurah,
@@ -255,15 +254,13 @@ const QuranPage: React.FC = () => {
                   iconPosition="start"
                 />
               </Tabs>
-            </Box>
-
-            {/* محتوى التبويبات */}
+            </Box>            {/* محتوى التبويبات */}
             <TabPanel value={selectedTab} index={0}>
               {selectedSurah ? (
                 <UthmaniReader
                   surahId={selectedSurah.id}
                   ayahNumber={selectedAyah || undefined}
-                  showWordBreakdown={true}
+                  showWordBreakdown={false}
                   onWordClick={handleWordClick}
                 />
               ) : (
