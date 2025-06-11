@@ -20,7 +20,10 @@ import {
   Container,
   Menu,
   MenuItem,
-  Chip
+  Chip,
+  Popover,
+  Card,
+  CardContent
 } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
@@ -39,22 +42,32 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SwitchAccountIcon from '@mui/icons-material/SwitchAccount';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import MessageIcon from '@mui/icons-material/Message';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import SendIcon from '@mui/icons-material/Send';
+import PaidIcon from '@mui/icons-material/Paid';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import { aiRecommendations } from '../data/ai-insights';
 
 const Header: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));  const [drawerOpen, setDrawerOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
+  const [showWelcomeNotification, setShowWelcomeNotification] = useState(true);
   const { currentMosque, themeMode, toggleThemeMode, user, currentRole, logout, isAuthenticated } = useAppContext();
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
   };
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
+  const handleNavigation = (path: string, comingSoon?: boolean) => {
+    if (comingSoon) {
+      // للصفحات القادمة قريباً، نوجه إلى صفحة خاصة
+      navigate(`/coming-soon?page=${encodeURIComponent(path)}`);
+    } else {
+      navigate(path);
+    }
     if (isMobile) {
       setDrawerOpen(false);
     }
@@ -66,11 +79,18 @@ const Header: React.FC = () => {
 
   const handleUserMenuClose = () => {
     setUserMenuAnchor(null);
-  };
-  const handleLogout = () => {
+  };  const handleLogout = () => {
     logout();
     navigate('/login');
     handleUserMenuClose();
+  };
+  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationAnchor(event.currentTarget);
+    setShowWelcomeNotification(false);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchor(null);
   };
 
   const handleRoleSwitch = () => {
@@ -92,52 +112,54 @@ const Header: React.FC = () => {
     return null;
   }  // قائمة العناصر في القائمة الجانبية
   const drawerItems = [
-    { text: 'لوحة التحكم', icon: <DashboardIcon />, path: '/dashboard' },
+    // { text: 'لوحة التحكم', icon: <DashboardIcon />, path: '/dashboard' }, // مخفية مؤقتاً
     { text: 'المدارس القرآنية', icon: <MosqueIcon />, path: '/' },
     { text: 'القرآن الكريم', icon: <MenuBookIcon />, path: '/quran' },
     { text: 'قائمة الطلاب', icon: <PeopleIcon />, path: '/students', disabled: !currentMosque },
-    { text: 'سجل التحضير', icon: <AssignmentIcon />, path: '/attendance-log', disabled: !currentMosque }
+    { text: 'سجل التحضير', icon: <AssignmentIcon />, path: '/attendance-log', disabled: !currentMosque },{ text: 'الرسائل', icon: <MessageIcon />, path: '/messages', comingSoon: true },
+    { text: 'الإحصائيات', icon: <BarChartIcon />, path: '/statistics', comingSoon: true },
+    { text: 'الطلبات', icon: <SendIcon />, path: '/requests', comingSoon: true },
+    { text: 'المكافآت', icon: <PaidIcon />, path: '/rewards', comingSoon: true },
+    { text: 'الإعلانات', icon: <CampaignIcon />, path: '/announcements', comingSoon: true }
   ];
   const drawer = (
     <Box sx={{ width: 280 }}>
-      <Toolbar /> {/* مساحة للشريط العلوي */}
-      <Box 
+      <Toolbar /> {/* مساحة للشريط العلوي */}      <Box 
         sx={{ 
           p: 3, 
           display: 'flex', 
           flexDirection: 'column', 
-          alignItems: 'center',
-          background: 'linear-gradient(180deg, rgba(30, 111, 142, 0.05) 0%, rgba(30, 111, 142, 0.02) 100%)'
+          alignItems: 'center'
         }}
-      >
-        <Avatar 
+      ><Box
           sx={{ 
             width: 75, 
             height: 75, 
-            bgcolor: 'primary.main', 
             mb: 2,
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
-          <MenuBookIcon sx={{ fontSize: 40 }} />
-        </Avatar>
-        <Typography variant="h5" color="primary.dark" fontWeight="bold" sx={{ mb: 0.5 }}>
+          <img 
+            src="/لوقو.svg" 
+            alt="شعار منصة غرب" 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        </Box>        <Typography variant="h5" color="text.primary" fontWeight="bold" sx={{ mb: 0.5 }}>
           منصة غرب
         </Typography>
         <Typography variant="body2" color="text.secondary">
           لإدارة حلقات القرآن الكريم
         </Typography>
       </Box>
-      <Divider />
-      <List sx={{ p: 2 }}>
-        {drawerItems.map((item) => (
+      <Divider />      <List sx={{ p: 2 }}>        {drawerItems.map((item) => (
           <ListItem
             component="div"
             key={item.text}
-            onClick={() => handleNavigation(item.path)}
+            onClick={() => handleNavigation(item.path, item.comingSoon)}
             disabled={item.disabled}
-            selected={location.pathname === item.path}
-            sx={{
+            selected={location.pathname === item.path}sx={{
               mb: 1,
               borderRadius: 2,
               '&.Mui-selected': {
@@ -153,13 +175,36 @@ const Header: React.FC = () => {
               },
               cursor: item.disabled ? 'default' : 'pointer'
             }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
+          >            <ListItemIcon sx={{ minWidth: 40 }}>
               {item.icon}
             </ListItemIcon>
             <ListItemText 
-              primary={item.text} 
-              primaryTypographyProps={{ fontWeight: location.pathname === item.path ? 'bold' : 'normal' }} 
+              primary={
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: location.pathname === item.path ? 'bold' : 'normal',
+                      color: item.comingSoon ? 'text.secondary' : 'inherit'
+                    }}
+                  >
+                    {item.text}
+                  </Typography>
+                  {item.comingSoon && (
+                    <Chip
+                      label="قريباً"
+                      size="small"
+                      sx={{
+                        fontSize: '0.6rem',
+                        height: 18,
+                        bgcolor: 'warning.light',
+                        color: 'warning.dark',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  )}
+                </Box>
+              }
             />
           </ListItem>
         ))}
@@ -223,18 +268,22 @@ const Header: React.FC = () => {
                 flexGrow: { xs: 1, md: 0 } 
               }}
               onClick={() => navigate('/')}
-            >
-              <Avatar 
+            >              <Box
                 sx={{ 
                   width: 38, 
                   height: 38, 
-                  bgcolor: 'primary.main', 
                   mr: 1,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                <MenuBookIcon sx={{ fontSize: 20 }} />
-              </Avatar>
+                <img 
+                  src="/لوقو.svg" 
+                  alt="شعار منصة غرب" 
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </Box>
               <Typography 
                 variant="h6" 
                 component="div"                sx={{ 
@@ -244,37 +293,12 @@ const Header: React.FC = () => {
                 }}
               >
                 منصة غرب
-              </Typography>
-            </Box>
+              </Typography>            </Box>
             
-            {/* روابط التنقل للشاشات المتوسطة والكبيرة */}
-            <Box 
-              sx={{ 
-                flexGrow: 1, 
-                display: { xs: 'none', md: 'flex' },
-                px: 3,
-                justifyContent: 'center'
-              }}
-            >
-              {drawerItems.map((item) => (
-                <Button
-                  key={item.text}
-                  onClick={() => handleNavigation(item.path)}
-                  disabled={item.disabled}
-                  startIcon={item.icon}
-                  color={location.pathname === item.path ? 'primary' : 'inherit'}
-                  variant={location.pathname === item.path ? 'contained' : 'text'}
-                  sx={{ 
-                    mx: 1, 
-                    borderRadius: 2,
-                    fontWeight: location.pathname === item.path ? 'bold' : 'normal',
-                    boxShadow: location.pathname === item.path ? 2 : 0
-                  }}
-                >
-                  {item.text}
-                </Button>
-              ))}
-            </Box>            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {/* مساحة فارغة للتوسيط */}
+            <Box sx={{ flexGrow: 1 }} />
+
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Tooltip title={themeMode === 'dark' ? 'وضع النهار' : 'الوضع الليلي'}>
                 <IconButton 
                   onClick={toggleThemeMode}
@@ -287,10 +311,9 @@ const Header: React.FC = () => {
                 >
                   {themeMode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
                 </IconButton>
-              </Tooltip>
-
-              <Tooltip title="الإشعارات">
+              </Tooltip>              <Tooltip title="الإشعارات">
                 <IconButton 
+                  onClick={handleNotificationClick}
                   sx={{ 
                     mx: 0.5,
                     bgcolor: 'background.default',
@@ -299,7 +322,7 @@ const Header: React.FC = () => {
                   }}
                 >
                   <Badge 
-                    badgeContent={aiRecommendations.length} 
+                    badgeContent={showWelcomeNotification ? 1 : 0} 
                     color="error"
                   >
                     <NotificationsIcon color="primary" />
@@ -450,8 +473,7 @@ const Header: React.FC = () => {
         variant="temporary"
         ModalProps={{
           keepMounted: true, // لأداء أفضل على الأجهزة المحمولة
-        }}
-        PaperProps={{
+        }}        PaperProps={{
           sx: {
             boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
             zIndex: (theme) => theme.zIndex.drawer,
@@ -465,9 +487,72 @@ const Header: React.FC = () => {
             boxSizing: 'border-box',
           },
         }}
-      >
-        {drawer}
+      >        {drawer}
       </Drawer>
+
+      {/* منبثق الإشعارات */}
+      <Popover
+        open={Boolean(notificationAnchor)}
+        anchorEl={notificationAnchor}
+        onClose={handleNotificationClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            borderRadius: 3,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+            overflow: 'visible',
+            '&::before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              left: '50%',
+              width: 10,
+              height: 10,
+              bgcolor: 'background.paper',
+              transform: 'translateX(-50%) translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+            },
+          }
+        }}
+      >        <Card sx={{ width: 320, border: 'none', boxShadow: 'none' }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ textAlign: 'center', mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold" color="primary" gutterBottom>
+                أهلاً بك في منصة غرب
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                منصة شاملة لإدارة ومتابعة حلقات تحفيظ القرآن الكريم
+              </Typography>
+            </Box>
+            
+            <Box 
+              sx={{ 
+                bgcolor: 'warning.light', 
+                color: 'warning.contrastText',
+                p: 1.5, 
+                borderRadius: 2, 
+                textAlign: 'center'
+              }}
+            >
+              <Typography variant="body2" fontWeight="medium">
+                🚧 نحن في المرحلة التجريبية
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                نعمل على التطوير والتحسين المستمر
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </Popover>
     </React.Fragment>
   );
 };
