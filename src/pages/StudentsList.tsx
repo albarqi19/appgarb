@@ -22,13 +22,15 @@ import {
   LinearProgress,
   CircularProgress,
   MenuItem,
-  Select,
-  FormControl,
+  Select,  FormControl,
   InputLabel,
   Tab,
   Tabs,
   useTheme,
-  Fab
+  Fab,
+  Popover,
+  Fade,
+  Zoom
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -74,9 +76,9 @@ const StudentsList: React.FC = () => {
   const [absentAlertOpen, setAbsentAlertOpen] = useState(false);
   const [selectedStudentForAlert, setSelectedStudentForAlert] = useState<Student | null>(null);
   const [alertAttendanceStatus, setAlertAttendanceStatus] = useState<'غائب' | 'مستأذن'>('غائب');
-
   const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});
   const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [showAttendanceHint, setShowAttendanceHint] = useState(false);
   
   // مرجع لمنع التحميل المضاعف
   const loadingRef = useRef(false);
@@ -159,6 +161,27 @@ const StudentsList: React.FC = () => {
       }
     };    loadMosqueStudents();
   }, [currentMosque, user, navigate]);
+
+  // مراقبة حالة التحضير لإظهار التأشير
+  useEffect(() => {
+    if (filteredStudents.length > 0 && hasTeacherCircles === true) {
+      // التحقق من وجود تحضير لليوم الحالي
+      const hasAttendanceRecords = Object.keys(todayAttendance).length > 0;
+      
+      if (!hasAttendanceRecords) {
+        // إظهار التأشير بعد تأخير قصير للسماح للواجهة بالتحميل
+        const timer = setTimeout(() => {
+          setShowAttendanceHint(true);
+        }, 2000);
+        
+        return () => clearTimeout(timer);
+      } else {
+        setShowAttendanceHint(false);
+      }
+    } else {
+      setShowAttendanceHint(false);
+    }
+  }, [filteredStudents, hasTeacherCircles, todayAttendance]);
 
   // التعامل مع حالة التنقل من صفحة خيارات التسميع
   useEffect(() => {
@@ -380,16 +403,16 @@ const StudentsList: React.FC = () => {
     
     return { total, present, late, excused, absent, excellentStudents };
   }, [displayedStudents, todayAttendance]);
-
   // دالة فتح نافذة التحضير
   const handleOpenAttendance = () => {
+    setShowAttendanceHint(false); // إخفاء التأشير عند فتح التحضير
     setAttendanceDialogOpen(true);
   };
 
   // دالة إغلاق نافذة التحضير
   const handleCloseAttendance = () => {
     setAttendanceDialogOpen(false);
-  };  // دالة نجاح إرسال التحضير
+  };// دالة نجاح إرسال التحضير
   const handleAttendanceSuccess = async () => {
     console.log('✅ تم إرسال التحضير بنجاح، فرض إعادة تحميل البيانات من الخادم...');
     setLoadingAttendance(true);
@@ -410,11 +433,15 @@ const StudentsList: React.FC = () => {
       
       const attendanceData = await forceRefreshAttendance(user?.id, currentMosque?.id);
       
-      console.log('📊 البيانات المحدثة من الخادم:', attendanceData);
-      console.log('👥 عدد الطلاب في البيانات المحدثة:', Object.keys(attendanceData).length);
+      console.log('📊 البيانات المحدثة من الخادم:', attendanceData);      console.log('👥 عدد الطلاب في البيانات المحدثة:', Object.keys(attendanceData).length);
       
       // تحديث الحالة فوراً
       setTodayAttendance(attendanceData);
+      
+      // إخفاء التأشير بعد إرسال التحضير بنجاح
+      if (Object.keys(attendanceData).length > 0) {
+        setShowAttendanceHint(false);
+      }
       
       // عرض تفاصيل إضافية للتشخيص
       if (Object.keys(attendanceData).length === 0) {
@@ -1122,9 +1149,7 @@ const StudentsList: React.FC = () => {
               </Paper>
             </Grid>
           )}        </Grid>
-        )}
-
-        {/* زر التحضير العائم - يظهر فقط عند وجود طلاب */}
+        )}        {/* زر التحضير العائم - يظهر فقط عند وجود طلاب */}
         {filteredStudents.length > 0 && hasTeacherCircles === true && (
           <Fab
             color="primary"
@@ -1144,7 +1169,66 @@ const StudentsList: React.FC = () => {
           >
             <AssignmentIcon />
           </Fab>
-        )}        {/* نافذة إدارة التحضير */}
+        )}
+
+        {/* تأشير لطيف للتحضير */}
+        <Zoom in={showAttendanceHint} timeout={500}>
+          <Box
+            sx={{
+              position: 'fixed',
+              bottom: 90,
+              right: 20,
+              zIndex: 1300,
+              pointerEvents: 'none'
+            }}
+          >
+            <Fade in={showAttendanceHint} timeout={800}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  px: 2,
+                  py: 1,
+                  borderRadius: 3,
+                  boxShadow: '0 4px 12px rgba(30, 111, 142, 0.3)',
+                  fontSize: '0.9rem',
+                  fontWeight: 'medium',
+                  animation: 'pulse 2s infinite',
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    bottom: -8,
+                    right: 20,
+                    width: 0,
+                    height: 0,
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: '8px solid',
+                    borderTopColor: 'primary.main'
+                  },
+                  '@keyframes pulse': {
+                    '0%': {
+                      transform: 'scale(1)',
+                      opacity: 0.9
+                    },
+                    '50%': {
+                      transform: 'scale(1.05)',
+                      opacity: 1
+                    },
+                    '100%': {
+                      transform: 'scale(1)',
+                      opacity: 0.9
+                    }
+                  }
+                }}
+              >
+                من هنا التحضير 👆
+              </Box>
+            </Fade>
+          </Box>
+        </Zoom>{/* نافذة إدارة التحضير */}
         <AttendanceManager
           open={attendanceDialogOpen}
           onClose={handleCloseAttendance}

@@ -41,6 +41,7 @@ const SupervisorDashboard = lazy(() => import('./pages/SupervisorDashboard'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const QuranPage = lazy(() => import('./pages/QuranPage'));
 const AttendanceLogPage = lazy(() => import('./pages/AttendanceLogPage'));
+const ComingSoon = lazy(() => import('./pages/ComingSoon'));
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
 const { PublicRoute } = require('./components/ProtectedRoute');
 
@@ -262,6 +263,15 @@ const AppContent = () => {
                     element={
                       <ProtectedRoute>
                         <UserProfile />
+                      </ProtectedRoute>
+                    }                  />
+                  
+                  {/* صفحة قريباً للميزات الجديدة */}
+                  <Route 
+                    path="/coming-soon" 
+                    element={
+                      <ProtectedRoute>
+                        <ComingSoon />
                       </ProtectedRoute>
                     } 
                   />
