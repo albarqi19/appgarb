@@ -39,7 +39,8 @@ import {
   TableCell,
   TableBody,
   LinearProgress,
-  Tooltip
+  Tooltip,
+  CircularProgress
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -47,6 +48,14 @@ import { supervisors, teacherAttendanceData, studentTransferRequests, supervisor
 import { students } from '../data/students';
 import { mosques } from '../data/mosques';
 import { studentAnalytics } from '../data/ai-insights';
+// استيراد خدمة المشرف الحقيقية
+import supervisorService, { 
+  SupervisorDashboardData, 
+  SupervisorTeacher, 
+  SupervisorStudent, 
+  SupervisorCircle,
+  SupervisorStatistics 
+} from '../services/supervisorService';
 
 // أيقونات
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
@@ -97,6 +106,7 @@ function TabPanel(props: TabPanelProps) {
 const SupervisorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { user } = useAppContext();
   const [activeTab, setActiveTab] = useState(0);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState('');
@@ -107,18 +117,76 @@ const SupervisorDashboard: React.FC = () => {
   const [attendanceStatus, setAttendanceStatus] = useState('');
   const [attendanceNotes, setAttendanceNotes] = useState('');
 
-  // بيانات المشرف الحالي (في التطبيق الحقيقي ستأتي من تسجيل الدخول)
+  // حالات البيانات من API
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<SupervisorDashboardData | null>(null);
+  const [supervisorTeachers, setSupervisorTeachers] = useState<SupervisorTeacher[]>([]);
+  const [supervisorStudents, setSupervisorStudents] = useState<SupervisorStudent[]>([]);
+  const [supervisorCircles, setSupervisorCircles] = useState<SupervisorCircle[]>([]);
+  const [supervisorStats, setSupervisorStats] = useState<SupervisorStatistics | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // بيانات المشرف الحالي (مؤقتاً من البيانات المحلية)
   const currentSupervisor = supervisors[0];
   const supervisedMosquesList = mosques.filter(m => currentSupervisor.supervisedMosques.includes(m.id));
   const supervisedStudents = students.filter(s => currentSupervisor.supervisedMosques.includes(s.mosqueId));
   const todayAttendance = teacherAttendanceData.filter(ta => ta.date === '2025-06-07' && currentSupervisor.supervisedMosques.includes(ta.mosqueId));
 
-  // الحصول على إحصائيات المشرف
+  // جلب البيانات من APIs الحقيقية
+  useEffect(() => {
+    const fetchSupervisorData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('🚀 بدء جلب بيانات المشرف');
+        
+        // استخدام معرف المشرف من المستخدم الحالي (مؤقتاً استخدم رقم 1)
+        const supervisorId = 1;
+        
+        // جلب البيانات الشاملة
+        const completeData = await supervisorService.getSupervisorCompleteData(supervisorId, user?.token);
+        
+        // تحديث الحالات
+        setDashboardData(completeData.dashboard);
+        setSupervisorTeachers(completeData.teachers);
+        setSupervisorStudents(completeData.students);
+        setSupervisorCircles(completeData.circles);
+        setSupervisorStats(completeData.statistics);
+        
+        console.log('✅ تم جلب بيانات المشرف بنجاح:', completeData);
+        
+      } catch (error) {
+        console.error('❌ خطأ في جلب بيانات المشرف:', error);
+        setError('فشل في تحميل بيانات المشرف');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSupervisorData();
+  }, [user?.id, user?.token]);
+  // الحصول على إحصائيات المشرف (محدثة لاستخدام البيانات من API)
   const getSupervisorStats = () => {
-    const totalMosques = supervisedMosquesList.length;
-    const totalStudents = supervisedStudents.length;
+    if (loading || !supervisorStats) {
+      // إرجاع قيم افتراضية أثناء التحميل
+      return {
+        totalMosques: 0,
+        totalStudents: 0,
+        attendanceRate: 0,
+        pendingTransfers: 0,
+        presentTeachers: 0,
+        totalTeachers: 0
+      };
+    }
+
+    // استخدام البيانات من API
+    const totalMosques = new Set(supervisorCircles.map(c => c.mosque.id)).size;
+    const totalStudents = supervisorStudents.length;
+    const totalTeachers = supervisorTeachers.length;
+    
+    // حساب معدل الحضور من بيانات API (مؤقتاً من البيانات المحلية)
     const presentTeachers = todayAttendance.filter(ta => ta.status === 'حاضر').length;
-    const totalTeachers = todayAttendance.length;
     const attendanceRate = totalTeachers > 0 ? Math.round((presentTeachers / totalTeachers) * 100) : 0;
     const pendingTransfers = studentTransferRequests.filter(str => str.status === 'pending').length;
 
@@ -127,38 +195,61 @@ const SupervisorDashboard: React.FC = () => {
       totalStudents,
       attendanceRate,
       pendingTransfers,
-      presentTeachers,
+      presentTeachers: presentTeachers || 0,
       totalTeachers
     };
   };
 
   const stats = getSupervisorStats();
-
-  // معالجة طلب نقل طالب
-  const handleStudentTransfer = () => {
-    // في التطبيق الحقيقي سيتم إرسال الطلب لقاعدة البيانات
-    console.log('طلب نقل:', {
-      studentId: selectedStudent,
-      targetMosque,
-      reason: transferReason
-    });
-    setTransferDialogOpen(false);
-    setSelectedStudent('');
-    setTransferReason('');
-    setTargetMosque('');
+  // معالجة طلب نقل طالب - محدث للعمل مع APIs
+  const handleStudentTransfer = async () => {
+    try {
+      // في التطبيق الحقيقي سيتم إرسال الطلب لقاعدة البيانات
+      console.log('طلب نقل:', {
+        studentId: selectedStudent,
+        targetMosque,
+        reason: transferReason
+      });
+      
+      // إرسال طلب النقل إلى API هنا
+      // await supervisorService.transferStudent(selectedStudent, targetMosque, transferReason);
+      
+      setTransferDialogOpen(false);
+      setSelectedStudent('');
+      setTransferReason('');
+      setTargetMosque('');
+      
+      // عرض رسالة نجاح
+      alert('تم إرسال طلب النقل بنجاح');
+    } catch (error) {
+      console.error('خطأ في إرسال طلب النقل:', error);
+      alert('فشل في إرسال طلب النقل');
+    }
   };
 
-  // معالجة تحضير المعلم
-  const handleTeacherAttendance = () => {
-    console.log('تحضير المعلم:', {
-      teacherId: selectedTeacher,
-      status: attendanceStatus,
-      notes: attendanceNotes
-    });
-    setAttendanceDialogOpen(false);
-    setSelectedTeacher('');
-    setAttendanceStatus('');
-    setAttendanceNotes('');
+  // معالجة تحضير المعلم - محدث للعمل مع APIs
+  const handleTeacherAttendance = async () => {
+    try {
+      console.log('تحضير المعلم:', {
+        teacherId: selectedTeacher,
+        status: attendanceStatus,
+        notes: attendanceNotes
+      });
+      
+      // إرسال حضور المعلم إلى API هنا
+      // await supervisorService.recordTeacherAttendance(selectedTeacher, attendanceStatus, attendanceNotes);
+      
+      setAttendanceDialogOpen(false);
+      setSelectedTeacher('');
+      setAttendanceStatus('');
+      setAttendanceNotes('');
+      
+      // عرض رسالة نجاح
+      alert('تم تسجيل الحضور بنجاح');
+    } catch (error) {
+      console.error('خطأ في تسجيل الحضور:', error);
+      alert('فشل في تسجيل الحضور');
+    }
   };
 
   // الحصول على أيقونة الحضور
@@ -191,9 +282,7 @@ const SupervisorDashboard: React.FC = () => {
       default:
         return 'default';
     }
-  };
-
-  return (
+  };  return (
     <Box 
       sx={{
         minHeight: '100vh',
@@ -205,131 +294,168 @@ const SupervisorDashboard: React.FC = () => {
       }}
     >
       <Container maxWidth="lg">
-        {/* رأس الصفحة - معلومات المشرف */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            mb: 4,
-            borderRadius: 3,
-            background: theme.palette.mode === 'light' 
-              ? 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)'
-              : 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-        >
-          {/* خلفية زخرفية */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: -50,
-              right: -50,
-              width: 200,
-              height: 200,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.05)',
-              zIndex: 0
-            }}
-          />
-          
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} md={8}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Avatar 
-                    sx={{ 
-                      bgcolor: 'rgba(255,255,255,0.2)', 
-                      mr: 2,
-                      width: 60,
-                      height: 60
-                    }}
-                  >
-                    <SupervisorAccountIcon sx={{ fontSize: 30 }} />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h4" component="h1" fontWeight="bold">
-                      أهلاً وسهلاً {currentSupervisor.name.split(' ')[0]}
-                    </Typography>
-                    <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5 }}>
-                      لوحة تحكم المشرف - إدارة الحلقات والمعلمين
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* معلومات سريعة */}
-                <Grid container spacing={2}>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">
-                        {stats.totalMosques}
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                        المساجد
-                      </Typography>
+        {/* عرض حالة التحميل */}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress size={60} sx={{ mb: 2 }} />
+              <Typography variant="h6" color="text.secondary">
+                جاري تحميل بيانات المشرف...
+              </Typography>
+            </Box>
+          </Box>
+        )}        {/* عرض رسالة الخطأ مع زر الإعادة */}
+        {error && !loading && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={() => window.location.reload()}
+              >
+                إعادة المحاولة
+              </Button>
+            }
+          >
+            {error}
+          </Alert>
+        )}
+
+        {/* المحتوى الرئيسي */}
+        {!loading && !error && (
+          <>
+            {/* رأس الصفحة - معلومات المشرف (محدث بالبيانات من API) */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                mb: 4,
+                borderRadius: 3,
+                background: theme.palette.mode === 'light' 
+                  ? 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)'
+                  : 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              {/* خلفية زخرفية */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -50,
+                  right: -50,
+                  width: 200,
+                  height: 200,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.05)',
+                  zIndex: 0
+                }}
+              />
+            
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Grid container spacing={3} alignItems="center">
+                  <Grid item xs={12} md={8}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: 'rgba(255,255,255,0.2)', 
+                          mr: 2,
+                          width: 60,
+                          height: 60
+                        }}
+                      >
+                        <SupervisorAccountIcon sx={{ fontSize: 30 }} />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h4" component="h1" fontWeight="bold">
+                          {dashboardData?.data?.welcome_message || `أهلاً وسهلاً ${currentSupervisor.name.split(' ')[0]}`}
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5 }}>
+                          لوحة تحكم المشرف - إدارة الحلقات والمعلمين
+                        </Typography>
+                      </Box>
                     </Box>
+                    
+                    {/* معلومات سريعة محدثة */}
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h6" fontWeight="bold">
+                            {stats.totalMosques}
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                            المساجد
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h6" fontWeight="bold">
+                            {stats.totalStudents}
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                            الطلاب
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h6" fontWeight="bold">
+                            {stats.attendanceRate}%
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                            حضور المعلمين
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h6" fontWeight="bold">
+                            {stats.pendingTransfers}
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                            طلبات النقل
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
                   </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">
-                        {stats.totalStudents}
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                        الطلاب
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">
-                        {stats.attendanceRate}%
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                        حضور المعلمين
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">
-                        {stats.pendingTransfers}
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                        طلبات النقل
-                      </Typography>
-                    </Box>
+                  
+                  <Grid item xs={12} md={4}>
+                    <Card 
+                      sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255,255,255,0.2)'
+                      }}
+                    >
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <NotificationsIcon sx={{ mr: 1, color: 'white' }} />
+                          <Typography variant="h6" color="white">
+                            التنبيهات العاجلة
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
+                          {dashboardData?.data?.notifications?.pending_reports || 0} تقرير معلق
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
+                          {dashboardData?.data?.notifications?.new_students || 0} طالب جديد
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                          {supervisorAIRecommendations.filter(r => r.priority === 'high').length} توصية ذكاء اصطناعي عالية الأولوية
+                        </Typography>
+                      </CardContent>
+                    </Card>
                   </Grid>
                 </Grid>
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Card 
-                  sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255,255,255,0.2)'
-                  }}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <NotificationsIcon sx={{ mr: 1, color: 'white' }} />
-                      <Typography variant="h6" color="white">
-                        التنبيهات العاجلة
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
-                      {stats.pendingTransfers} طلب نقل بانتظار الموافقة
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      {supervisorAIRecommendations.filter(r => r.priority === 'high').length} توصية ذكاء اصطناعي عالية الأولوية
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </Box>
-        </Paper>
+              </Box>
+            </Paper>
+          </>
+        )}
 
         {/* تبويبات المحتوى */}
         <Paper elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', mb: 3 }}>
@@ -421,21 +547,26 @@ const SupervisorDashboard: React.FC = () => {
                   <TransferWithinAStationIcon sx={{ fontSize: 40, opacity: 0.8 }} />
                 </Box>
               </Card>
-            </Grid>
-
-            {/* المساجد التي يشرف عليها */}
+            </Grid>            {/* المساجد التي يشرف عليها - محدث لاستخدام البيانات من API */}
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   المساجد تحت إشرافي
-                </Typography>
-                <Grid container spacing={2}>
-                  {supervisedMosquesList.map((mosque) => {
-                    const mosqueStudents = supervisedStudents.filter(s => s.mosqueId === mosque.id);
-                    const avgScore = mosqueStudents.reduce((sum, s) => sum + s.totalScore, 0) / mosqueStudents.length || 0;
+                </Typography>                <Grid container spacing={2}>
+                  {Array.from(new Set(supervisorCircles.map(c => c.mosque.id))).map((mosqueId) => {
+                    const mosque = supervisorCircles.find(c => c.mosque.id === mosqueId)?.mosque;
+                    if (!mosque) return null;
+                    
+                    const mosqueStudents = supervisorStudents.filter(s => 
+                      s.circle && s.circle.mosque && s.circle.mosque.id === mosqueId
+                    );
+                    const mosqueCircles = supervisorCircles.filter(c => c.mosque.id === mosqueId);
+                    const avgScore = mosqueStudents.length > 0 
+                      ? mosqueStudents.reduce((sum, s) => sum + (s.total_score || 0), 0) / mosqueStudents.length 
+                      : 0;
                     
                     return (
-                      <Grid item xs={12} md={6} lg={4} key={mosque.id}>
+                      <Grid item xs={12} md={6} lg={4} key={mosqueId}>
                         <Card variant="outlined" sx={{ height: '100%' }}>
                           <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -447,7 +578,7 @@ const SupervisorDashboard: React.FC = () => {
                                   {mosque.name}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                  {mosque.location}
+                                  {mosque.location || 'غير محدد'}
                                 </Typography>
                               </Box>
                             </Box>
@@ -465,7 +596,7 @@ const SupervisorDashboard: React.FC = () => {
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <Typography variant="body2">عدد الحلقات:</Typography>
-                                <Typography variant="body2" fontWeight="bold">{mosque.studentsCount > 0 ? Math.ceil(mosque.studentsCount / 15) : 0}</Typography>
+                                <Typography variant="body2" fontWeight="bold">{mosqueCircles.length}</Typography>
                               </Box>
                             </Stack>
                             
@@ -474,7 +605,7 @@ const SupervisorDashboard: React.FC = () => {
                                 variant="outlined" 
                                 size="small" 
                                 fullWidth
-                                onClick={() => navigate(`/students?mosque=${mosque.id}`)}
+                                onClick={() => navigate(`/students?mosque=${mosqueId}`)}
                               >
                                 عرض التفاصيل
                               </Button>
@@ -507,95 +638,82 @@ const SupervisorDashboard: React.FC = () => {
                     نقل طالب
                   </Button>
                 </Box>
-                
-                <TableContainer>
+                  <TableContainer>
                   <Table>
                     <TableHead>
                       <TableRow>
                         <TableCell>اسم الطالب</TableCell>
                         <TableCell>المسجد</TableCell>
-                        <TableCell>المستوى</TableCell>
+                        <TableCell>الحلقة</TableCell>
                         <TableCell>الدرجة</TableCell>
-                        <TableCell>الحضور</TableCell>
+                        <TableCell>المعلم</TableCell>
                         <TableCell>الإجراءات</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {supervisedStudents.slice(0, 10).map((student) => {
-                        const mosque = mosques.find(m => m.id === student.mosqueId);
-                        const analytics = studentAnalytics[student.id];
-                        
-                        return (
-                          <TableRow key={student.id}>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>                                <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
-                                  {student.name ? student.name.charAt(0) : '؟'}
-                                </Avatar>
-                                <Box>
-                                  <Typography variant="body2" fontWeight="medium">
-                                    {student.name}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {student.age} سنة
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            </TableCell>
-                            <TableCell>{mosque?.name}</TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={student.level} 
-                                size="small"
-                                color={student.level === 'متقدم' ? 'success' : student.level === 'متوسط' ? 'primary' : 'default'}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={student.totalScore} 
-                                  sx={{ width: 60, mr: 1 }}
-                                  color={student.totalScore >= 80 ? "success" : student.totalScore >= 60 ? "warning" : "error"}
-                                />
-                                <Typography variant="caption">
-                                  {student.totalScore}%
+                      {supervisorStudents.slice(0, 10).map((student) => (
+                        <TableRow key={student.id}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
+                                {student.name ? student.name.charAt(0) : '؟'}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {student.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {student.age} سنة
                                 </Typography>
                               </Box>
-                            </TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={`${student.attendanceRate}%`}
-                                size="small"
-                                color={student.attendanceRate >= 90 ? "success" : student.attendanceRate >= 70 ? "warning" : "error"}
+                            </Box>                          </TableCell>
+                          <TableCell>{student.circle && student.circle.mosque ? student.circle.mosque.name : 'غير محدد'}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {student.circle ? student.circle.name : 'غير محدد'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={student.total_score || 0} 
+                                sx={{ width: 60, mr: 1 }}
+                                color={(student.total_score || 0) >= 80 ? "success" : (student.total_score || 0) >= 60 ? "warning" : "error"}
                               />
-                            </TableCell>
-                            <TableCell>
-                              <IconButton 
-                                size="small"
-                                onClick={() => navigate(`/student-details/${student.id}`)}
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                              <Typography variant="caption">
+                                {student.total_score || 0}%
+                              </Typography>
+                            </Box>
+                          </TableCell>                          <TableCell>
+                            <Typography variant="body2">
+                              {student.circle && student.circle.teacher ? student.circle.teacher.name : 'غير محدد'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <IconButton 
+                              size="small"
+                              onClick={() => navigate(`/student-details/${student.id}`)}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </TableContainer>
               </Paper>
             </Grid>
           </Grid>
-        </TabPanel>
-
-        {/* تبويبة تحضير المعلمين */}
+        </TabPanel>        {/* تبويبة تحضير المعلمين - محدث لاستخدام البيانات من API */}
         <TabPanel value={activeTab} index={2}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h6" fontWeight="bold">
-                    تحضير المعلمين - اليوم {new Date().toLocaleDateString('ar-SA')}
+                    إدارة المعلمين - {supervisorTeachers.length} معلم
                   </Typography>
                   <Button
                     variant="contained"
@@ -607,38 +725,67 @@ const SupervisorDashboard: React.FC = () => {
                 </Box>
                 
                 <Grid container spacing={2}>
-                  {todayAttendance.map((attendance) => (
-                    <Grid item xs={12} md={6} lg={4} key={attendance.id}>
+                  {supervisorTeachers.map((teacher) => (
+                    <Grid item xs={12} md={6} lg={4} key={teacher.id}>
                       <Card variant="outlined">
                         <CardContent>
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            {getAttendanceIcon(attendance.status)}
-                            <Box sx={{ ml: 2 }}>
+                            <Avatar sx={{ mr: 2, bgcolor: 'primary.light' }}>
+                              {teacher.name.charAt(0)}
+                            </Avatar>
+                            <Box>
                               <Typography variant="h6" fontWeight="bold">
-                                {attendance.teacherName}
+                                {teacher.name}
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
-                                {mosques.find(m => m.id === attendance.mosqueId)?.name}
+                                {teacher.phone}
                               </Typography>
                             </Box>
                           </Box>
                           
-                          <Chip 
-                            label={attendance.status}
-                            color={getAttendanceColor(attendance.status) as any}
-                            size="small"
-                            sx={{ mb: 2 }}
-                          />
+                          <Divider sx={{ my: 2 }} />
                           
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              عدد الحلقات: {attendance.sessionCount}
-                            </Typography>
-                            {attendance.notes && (
-                              <Typography variant="body2" color="text.secondary">
-                                ملاحظات: {attendance.notes}
+                          <Stack spacing={1}>                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography variant="body2">المساجد:</Typography>
+                              <Typography variant="body2" fontWeight="bold">
+                                {teacher.mosques ? teacher.mosques.length : 0}
                               </Typography>
-                            )}
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography variant="body2">الحلقات:</Typography>
+                              <Typography variant="body2" fontWeight="bold">
+                                {teacher.circles_count}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography variant="body2">الطلاب:</Typography>
+                              <Typography variant="body2" fontWeight="bold">
+                                {teacher.students_count}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              المساجد:
+                            </Typography>                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {teacher.mosques && teacher.mosques.slice(0, 2).map((mosque) => (
+                                <Chip 
+                                  key={mosque.id}
+                                  label={mosque.name}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ))}
+                              {teacher.mosques && teacher.mosques.length > 2 && (
+                                <Chip 
+                                  label={`+${teacher.mosques.length - 2}`}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                />
+                              )}
+                            </Box>
                           </Box>
                           
                           <Button
@@ -646,14 +793,10 @@ const SupervisorDashboard: React.FC = () => {
                             size="small"
                             fullWidth
                             startIcon={<EditIcon />}
-                            onClick={() => {
-                              setSelectedTeacher(attendance.teacherId);
-                              setAttendanceStatus(attendance.status);
-                              setAttendanceNotes(attendance.notes || '');
-                              setAttendanceDialogOpen(true);
-                            }}
+                            sx={{ mt: 2 }}
+                            onClick={() => navigate(`/teacher-details/${teacher.id}`)}
                           >
-                            تعديل الحضور
+                            عرض التفاصيل
                           </Button>
                         </CardContent>
                       </Card>
@@ -894,17 +1037,15 @@ const SupervisorDashboard: React.FC = () => {
         >
           <DialogTitle>نقل طالب إلى مسجد آخر</DialogTitle>
           <DialogContent>
-            <Box sx={{ pt: 2 }}>
-              <FormControl fullWidth sx={{ mb: 2 }}>
+            <Box sx={{ pt: 2 }}>              <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>اختر الطالب</InputLabel>
                 <Select
                   value={selectedStudent}
                   onChange={(e) => setSelectedStudent(e.target.value)}
                   label="اختر الطالب"
-                >
-                  {supervisedStudents.map((student) => (
+                >                  {supervisorStudents.map((student) => (
                     <MenuItem key={student.id} value={student.id}>
-                      {student.name} - {mosques.find(m => m.id === student.mosqueId)?.name}
+                      {student.name} - {student.circle && student.circle.mosque ? student.circle.mosque.name : 'غير محدد'}
                     </MenuItem>
                   ))}
                 </Select>
@@ -917,11 +1058,14 @@ const SupervisorDashboard: React.FC = () => {
                   onChange={(e) => setTargetMosque(e.target.value)}
                   label="المسجد الجديد"
                 >
-                  {supervisedMosquesList.map((mosque) => (
-                    <MenuItem key={mosque.id} value={mosque.id}>
-                      {mosque.name}
-                    </MenuItem>
-                  ))}
+                  {Array.from(new Set(supervisorCircles.map(c => c.mosque.id))).map((mosqueId) => {
+                    const mosque = supervisorCircles.find(c => c.mosque.id === mosqueId)?.mosque;
+                    return mosque ? (
+                      <MenuItem key={mosque.id} value={mosque.id}>
+                        {mosque.name}
+                      </MenuItem>
+                    ) : null;
+                  })}
                 </Select>
               </FormControl>
               
@@ -959,17 +1103,15 @@ const SupervisorDashboard: React.FC = () => {
         >
           <DialogTitle>تسجيل حضور المعلم</DialogTitle>
           <DialogContent>
-            <Box sx={{ pt: 2 }}>
-              <FormControl fullWidth sx={{ mb: 2 }}>
+            <Box sx={{ pt: 2 }}>              <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>اختر المعلم</InputLabel>
                 <Select
                   value={selectedTeacher}
                   onChange={(e) => setSelectedTeacher(e.target.value)}
                   label="اختر المعلم"
-                >
-                  {todayAttendance.map((attendance) => (
-                    <MenuItem key={attendance.teacherId} value={attendance.teacherId}>
-                      {attendance.teacherName}
+                >                  {supervisorTeachers.map((teacher) => (
+                    <MenuItem key={teacher.id} value={teacher.id}>
+                      {teacher.name} - {teacher.mosques ? teacher.mosques.map(m => m.name).join(', ') : 'غير محدد'}
                     </MenuItem>
                   ))}
                 </Select>

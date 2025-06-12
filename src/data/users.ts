@@ -18,6 +18,7 @@ export interface User {
   createdAt: string;
   lastLogin?: string;
   isActive: boolean;
+  token?: string; // إضافة توكن المستخدم
 }
 
 export type UserRole = 'teacher' | 'parent' | 'student' | 'supervisor';

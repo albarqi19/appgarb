@@ -27,12 +27,12 @@ import {
   Stack,
   LinearProgress,
   Collapse,
-  TextField,
-  InputAdornment,
+  TextField,  InputAdornment,
   Badge,
   Popover,
   ButtonGroup,
-  useTheme
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -85,6 +85,7 @@ const MemorizationSession: React.FC = () => {
   const navigate = useNavigate();
   const { selectedStudent, memorizationMode, setIsSessionActive, user } = useAppContext();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [isSessionStarted, setIsSessionStarted] = useState(false);
   const [currentSurah, setCurrentSurah] = useState<UthmaniSurah | undefined>(
     uthmaniSurahs.find(s => s.arabicName === selectedStudent?.currentMemorization.surahName)
@@ -95,11 +96,9 @@ const MemorizationSession: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [selectedWord, setSelectedWord] = useState<{word: string, index: number, ayahIndex: number}>({word: '', index: 0, ayahIndex: 0});
-  const [selectedErrorType, setSelectedErrorType] = useState<'حفظ' | 'تجويد' | 'نطق'>('حفظ');
-  const [finalScore, setFinalScore] = useState(100);
+  const [selectedErrorType, setSelectedErrorType] = useState<'حفظ' | 'تجويد' | 'نطق'>('حفظ');  const [finalScore, setFinalScore] = useState(100);
   const [showScoreDialog, setShowScoreDialog] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);  const [sessionTime, setSessionTime] = useState(0);  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timer | null>(null);
+  const [sessionTime, setSessionTime] = useState(0);const [sessionTimer, setSessionTimer] = useState<NodeJS.Timer | null>(null);
   const [notes, setNotes] = useState('');
   const [showErrorSummary, setShowErrorSummary] = useState(true);
   const [isPageReady, setIsPageReady] = useState(false);
@@ -338,53 +337,11 @@ const MemorizationSession: React.FC = () => {
     }
   };
 
-  // تحليل الأخطاء باستخدام الذكاء الاصطناعي
-  const analyzeErrors = () => {
-    setIsAnalyzing(true);
-    
-    // محاكاة استدعاء خدمة الذكاء الاصطناعي
-    setTimeout(() => {
-      const analytics = studentAnalytics[selectedStudent?.id || ''];
-      
-      if (analytics) {
-        // استنادًا إلى بيانات الطالب، نقدم اقتراحات مخصصة
-        const suggestions = [];
-        
-        if (errors.filter(e => e.type === 'تجويد').length > 1) {
-          suggestions.push("يُلاحظ تكرار أخطاء التجويد. يُوصى بالتركيز على قواعد النطق الصحيح للحروف المتشابهة.");
-        }
-        
-        if (errors.filter(e => e.type === 'حفظ').length > 2) {
-          suggestions.push("هناك عدة أخطاء في الحفظ. يُفضل تقسيم المقطع إلى أجزاء أصغر للمراجعة.");
-        }
-
-        if (analytics.weaknesses.includes('التركيز لفترات طويلة')) {
-          suggestions.push("يُنصح بتقصير جلسات الحفظ وزيادة عددها لتحسين التركيز.");
-        }
-
-        if (errors.some(e => e.ayahIndex === fromAyah)) {
-          suggestions.push("تظهر الأخطاء في بداية المقطع. يُقترح البدء بتكرار الآية الأولى بشكل أكبر.");
-        }
-
-        if (suggestions.length === 0) {
-          suggestions.push("أداء الطالب جيد نسبيًا. استمر في نفس منهج التحفيظ الحالي.");
-        }
-        
-        setAiSuggestions(suggestions);
-      } else {
-        setAiSuggestions(["لم تتوفر بيانات كافية للتحليل. استمر في متابعة أداء الطالب."]);
-      }
-      
-      setIsAnalyzing(false);
-      setShowScoreDialog(true);
-    }, 1500);
-  };
-
   // إنهاء جلسة التسميع
   const handleFinishSession = () => {
     setIsSessionStarted(false);
-    analyzeErrors();
-  };  // حفظ النتائج والعودة لصفحة الطلاب
+    setShowScoreDialog(true);
+  };// حفظ النتائج والعودة لصفحة الطلاب
   const handleSaveResults = async () => {
     if (!currentSessionId) {
       console.warn('⚠️ لا يمكن حفظ النتائج: معرف الجلسة غير متوفر');
@@ -607,14 +564,13 @@ const MemorizationSession: React.FC = () => {
             {apiError}
           </Alert>
         )}
-        
-        {(isSendingErrors || isSavingResults) && (
+          {isSavingResults && (
           <Alert 
             severity="info" 
             icon={<CircularProgress size={20} />}
             sx={{ mb: 3, borderRadius: 2 }}
           >
-            {isSendingErrors ? "جاري إرسال الأخطاء..." : "جاري حفظ النتائج..."}
+            جاري حفظ النتائج...
           </Alert>
         )}
         
@@ -805,37 +761,7 @@ const MemorizationSession: React.FC = () => {
                       </Box>
                     </Collapse>
                   </>
-                )}
-              </Paper>
-
-              {/* ملاحظات التسميع */}
-              {isSessionStarted && (
-                <Paper 
-                  elevation={0}
-                  sx={{ 
-                    p: 3, 
-                    borderRadius: 3, 
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <NotesIcon sx={{ mr: 1 }} color="primary" />
-                    <Typography variant="h6" fontWeight="medium">
-                      ملاحظات التسميع
-                    </Typography>
-                  </Box>
-                  <TextField
-                    multiline
-                    rows={4}
-                    fullWidth
-                    placeholder="أضف ملاحظاتك هنا..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Paper>
-              )}
+                )}              </Paper>
             </Stack>
           </Grid>
 
@@ -916,14 +842,39 @@ const MemorizationSession: React.FC = () => {
                       zIndex: 1
                     }}
                   >
-                    <PlayArrowIcon 
-                      sx={{ 
-                        fontSize: 60, 
-                        color: 'primary.main', 
-                        mb: 2,
-                        filter: theme.palette.mode === 'dark' ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' : 'none'
-                      }} 
-                    />
+                    {isCreatingSession ? (
+                      <CircularProgress 
+                        sx={{ 
+                          fontSize: 60, 
+                          color: 'primary.main', 
+                          mb: 2,
+                          filter: theme.palette.mode === 'dark' ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' : 'none'
+                        }} 
+                      />
+                    ) : (
+                      <IconButton
+                        onClick={handleStartSession}
+                        disabled={isCreatingSession}
+                        sx={{
+                          p: 2,
+                          mb: 2,
+                          bgcolor: 'transparent',
+                          '&:hover': {
+                            bgcolor: 'rgba(25, 118, 210, 0.04)',
+                            transform: 'scale(1.1)'
+                          },
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <PlayArrowIcon 
+                          sx={{ 
+                            fontSize: 60, 
+                            color: 'primary.main',
+                            filter: theme.palette.mode === 'dark' ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' : 'none'
+                          }} 
+                        />
+                      </IconButton>
+                    )}
                     <Typography 
                       variant="h6" 
                       color="primary" 
@@ -934,7 +885,7 @@ const MemorizationSession: React.FC = () => {
                         textShadow: theme.palette.mode === 'dark' ? '0 1px 2px rgba(0,0,0,0.7)' : 'none'
                       }}
                     >
-                      اضغط على "بدء التسميع" لتبدأ الجلسة
+                      {isCreatingSession ? "جاري البدء..." : "اضغط على \"بدء التسميع\" لتبدأ الجلسة"}
                     </Typography>
                     <Typography 
                       variant="body2" 
@@ -948,7 +899,7 @@ const MemorizationSession: React.FC = () => {
                       يمكنك النقر على الكلمات لتسجيل الأخطاء أثناء التسميع
                     </Typography>
                   </Box>
-                )}                {currentSurah && currentAyahs.length > 0 ? (
+                )}{currentSurah && currentAyahs.length > 0 ? (
                   <Paper 
                     elevation={theme.palette.mode === 'light' ? 0 : 2} 
                     sx={{ 
@@ -1187,12 +1138,12 @@ const MemorizationSession: React.FC = () => {
         </Paper>
       </Popover>
 
-      {/* نافذة النتيجة النهائية */}
-      <Dialog 
+      {/* نافذة النتيجة النهائية */}      <Dialog 
         open={showScoreDialog} 
         onClose={() => setShowScoreDialog(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -1233,11 +1184,9 @@ const MemorizationSession: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-        </Box>
-
-        <DialogContent sx={{ py: 4 }}>
+        </Box>        <DialogContent sx={{ py: 4 }}>
           <Grid container spacing={4}>
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12}>
               <Card 
                 variant="outlined" 
                 sx={{ 
@@ -1347,8 +1296,37 @@ const MemorizationSession: React.FC = () => {
                             </Box>
                           </Grid>
                         ))}
-                      </Grid>
+                      </Grid>                    </Box>
+                    
+                    <Divider sx={{ my: 3 }} />
+                    
+                    {/* ملاحظات المعلم */}
+                    <Box sx={{ mt: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <NotesIcon sx={{ mr: 1, fontSize: 20 }} color="primary" />
+                        <Typography variant="subtitle1" fontWeight="medium">
+                          ملاحظات المعلم
+                        </Typography>
+                      </Box>
+                      <TextField
+                        multiline
+                        rows={3}
+                        fullWidth
+                        placeholder="أضف ملاحظاتك على أداء الطالب هنا..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            fontSize: '0.9rem'
+                          }
+                        }}
+                      />
                     </Box>
+                    
+                    <Divider sx={{ my: 3 }} />
                     
                     <Box sx={{ textAlign: 'center', mt: 4 }}>
                       <Typography variant="subtitle1" color="text.secondary" gutterBottom>
@@ -1393,158 +1371,7 @@ const MemorizationSession: React.FC = () => {
                       </Box>
                     </Box>
                   </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={7}>
-              <Card 
-                variant="outlined" 
-                sx={{ 
-                  height: '100%', 
-                  borderRadius: 3,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                  overflow: 'hidden'
-                }}
-              >
-                <Box
-                  sx={{
-                    p: 3,
-                    bgcolor: 'primary.light',
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <AutoAwesomeIcon sx={{ mr: 1, color: 'primary.dark' }} />
-                    <Typography variant="h6" fontWeight="medium" color="primary.dark">
-                      توصيات الذكاء الاصطناعي
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                <CardContent sx={{ position: 'relative', pt: 3, px: 3, pb: 2 }}>  
-                  {isAnalyzing ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-                      <CircularProgress size={60} />
-                      <Typography variant="body1" sx={{ mt: 3, mb: 1 }} fontWeight="medium">
-                        جاري تحليل أداء الطالب...
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        يتم معالجة بيانات الجلسة وإعداد التوصيات المناسبة
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Box>
-                      <Box sx={{ mb: 3 }}>
-                        <Typography variant="h6" color="primary.dark" gutterBottom>
-                          نقاط القوة والضعف
-                        </Typography>
-                        <Grid container spacing={2}>
-                          <Grid item xs={6}>
-                            <Paper 
-                              variant="outlined" 
-                              sx={{ 
-                                p: 2, 
-                                height: '100%',
-                                borderRadius: 2,
-                                bgcolor: 'success.light', 
-                                borderColor: 'success.main' 
-                              }}
-                            >
-                              <Typography variant="body2" color="success.dark" fontWeight="medium" gutterBottom>
-                                نقاط القوة
-                              </Typography>
-                              <Box component="ul" sx={{ pl: 2, m: 0 }}>
-                                {studentAnalytics[selectedStudent.id]?.strengths.slice(0, 2).map((str, idx) => (
-                                  <Typography component="li" variant="body2" key={idx} sx={{ mb: 0.5 }}>
-                                    {str}
-                                  </Typography>
-                                ))}
-                              </Box>
-                            </Paper>
-                          </Grid>
-                          
-                          <Grid item xs={6}>
-                            <Paper 
-                              variant="outlined" 
-                              sx={{ 
-                                p: 2, 
-                                height: '100%',
-                                borderRadius: 2,
-                                bgcolor: 'warning.light', 
-                                borderColor: 'warning.main' 
-                              }}
-                            >
-                              <Typography variant="body2" color="warning.dark" fontWeight="medium" gutterBottom>
-                                نقاط الضعف
-                              </Typography>
-                              <Box component="ul" sx={{ pl: 2, m: 0 }}>
-                                {studentAnalytics[selectedStudent.id]?.weaknesses.slice(0, 2).map((str, idx) => (
-                                  <Typography component="li" variant="body2" key={idx} sx={{ mb: 0.5 }}>
-                                    {str}
-                                  </Typography>
-                                ))}
-                              </Box>
-                            </Paper>
-                          </Grid>
-                        </Grid>
-                      </Box>
-                    
-                      <Typography variant="h6" color="primary.dark" gutterBottom>
-                        التوصيات الخاصة بالجلسة
-                      </Typography>
-                      
-                      {aiSuggestions.map((suggestion, index) => (
-                        <Paper 
-                          key={index} 
-                          variant="outlined"
-                          sx={{ 
-                            p: 2, 
-                            mb: 2, 
-                            borderRadius: 2,
-                            borderColor: index % 2 === 0 ? 'primary.light' : 'secondary.light',
-                            borderLeft: '4px solid',
-                            borderLeftColor: index % 2 === 0 ? 'primary.main' : 'secondary.main' 
-                          }}
-                        >
-                          <Typography variant="body1">
-                            {suggestion}
-                          </Typography>
-                        </Paper>
-                      ))}
-                      
-                      {notes && (
-                        <Box sx={{ mt: 4 }}>
-                          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                            <NotesIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                            ملاحظات المعلم:
-                          </Typography>
-                          <Paper 
-                            variant="outlined" 
-                            sx={{ 
-                              p: 2, 
-                              borderRadius: 2,
-                              bgcolor: 'background.default'
-                            }}
-                          >
-                            <Typography variant="body2">
-                              {notes}
-                            </Typography>
-                          </Paper>
-                        </Box>
-                      )}
-
-                      <Box sx={{ textAlign: 'right', mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          <AutoAwesomeIcon fontSize="inherit" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                          تحليل ذكي مدعوم بالذكاء الاصطناعي
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
+                </CardContent>              </Card>
             </Grid>
           </Grid>
         </DialogContent>

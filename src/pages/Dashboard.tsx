@@ -35,6 +35,7 @@ import { surahs } from '../data/quran';
 import { aiRecommendations } from '../data/ai-insights';
 import { Circle } from '../data/circles';
 import { getTeacherCircles, getTeacherStudents, getGeneralStats, getTeacherMosques, getMosqueStudentsCount, Mosque as APIMosque } from '../services/authService';
+import WorkingHoursAlert from '../components/WorkingHoursAlert';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -1180,6 +1181,9 @@ const Dashboard: React.FC = () => {
           </Grid>
         </Grid>
       </Container>
+      
+      {/* تنبيه وقت الدوام */}
+      <WorkingHoursAlert />
     </Box>
   );
 };

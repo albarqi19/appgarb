@@ -19,6 +19,7 @@ import { useAppContext } from '../context/AppContext';
 import { mosques } from '../data/mosques';
 import { getUserMosques } from '../data/users';
 import { getAllMosques, getTeacherMosques, Mosque as APIMosque } from '../services/authService';
+import WorkingHoursAlert from '../components/WorkingHoursAlert';
 import MosqueIcon from '@mui/icons-material/Mosque';
 import PersonIcon from '@mui/icons-material/Person';
 import FamilyRestroomIcon from '@mui/icons-material/FamilyRestroom';
@@ -78,13 +79,15 @@ const MosqueSelection: React.FC = () => {
         location: selectedAPI.district || selectedAPI.الحي || selectedAPI.street || selectedAPI.الشارع || 'غير محدد',
         studentsCount: 0 // سيتم جلبه منفصلاً
       };
-      setCurrentMosque(localMosque);
-      navigate(`/students/${mosqueId}`);
+      setCurrentMosque(localMosque);    navigate(`/students/${mosqueId}`);
     } else {
       console.error('لم يتم العثور على المسجد المحدد في مساجد API:', mosqueId);
     }
   };
-  return (    <Container maxWidth="lg" sx={{ mt: 10, mb: 4 }}>      <Paper 
+  
+  return (
+    <Container maxWidth="lg" sx={{ mt: 10, mb: 4 }}>
+      <Paper
         elevation={3} 
         sx={{ 
           p: 4, 
@@ -367,9 +370,10 @@ const MosqueSelection: React.FC = () => {
                 </CardActionArea>
               </Card>
             </Grid>
-          ))}
-        </Grid>
+          ))}        </Grid>
       )}
+        {/* تنبيه وقت الدوام */}
+      <WorkingHoursAlert />
     </Container>
   );
 };

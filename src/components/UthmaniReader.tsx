@@ -27,15 +27,26 @@ import {
   getSurahById,
   getAyahsBySurahId,
 } from '../data/quran-uthmani';
+import '../styles/uthmani.css';
 
 // تنسيق خاص للنص العثماني
 const UthmaniText = styled(Typography)(({ theme }) => ({
-  fontFamily: 'KFGQPC Uthmanic Script HAFS, Arial, sans-serif',
-  fontSize: '28px',
-  lineHeight: 2.2,
+  fontFamily: '"Amiri Quran", "KFGQPC Uthmanic Script HAFS", "Noto Naskh Arabic", serif',
+  fontSize: '32px',
+  lineHeight: 2.5,
   textAlign: 'right',
   direction: 'rtl',
   color: theme.palette.text.primary,
+  letterSpacing: '0.5px',
+  wordSpacing: '8px',
+  margin: '16px 0',
+  padding: '16px',
+  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+  borderRadius: '8px',
+  fontWeight: '400',
+  textRendering: 'optimizeLegibility',
+  '-webkit-font-smoothing': 'antialiased',
+  '-moz-osx-font-smoothing': 'grayscale',
   '&.highlighted': {
     backgroundColor: theme.palette.primary.light,
     color: theme.palette.primary.contrastText,
@@ -142,16 +153,9 @@ const UthmaniReader: React.FC<UthmaniReaderProps> = ({
                 borderColor: 'primary.main',
                 transition: 'all 0.3s ease',
               }}
-            >
-              <CardContent>
+            >              <CardContent sx={{ textAlign: 'right', direction: 'rtl' }}>
                 {/* رقم الآية وأدوات التحكم */}
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Chip 
-                    label={ayah.number} 
-                    color="primary" 
-                    size="small"
-                    onClick={() => handleAyahClick(ayah.number)}
-                  />
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} dir="rtl">
                   <Box>
                     <Tooltip title="تشغيل">
                       <IconButton 
@@ -161,7 +165,12 @@ const UthmaniReader: React.FC<UthmaniReaderProps> = ({
                         {isPlaying ? <Pause /> : <PlayArrow />}
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="إضافة إلى المفضلة">
+                    <Tooltip title="الصوت">
+                      <IconButton size="small">
+                        <VolumeUp />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="إضافة علامة مرجعية">
                       <IconButton size="small">
                         <Bookmark />
                       </IconButton>
@@ -172,15 +181,29 @@ const UthmaniReader: React.FC<UthmaniReaderProps> = ({
                       </IconButton>
                     </Tooltip>
                   </Box>
-                </Box>
-
-                {/* النص العثماني */}
-                <UthmaniText paragraph>
+                  <Chip 
+                    label={ayah.number} 
+                    color="primary" 
+                    size="small"
+                    onClick={() => handleAyahClick(ayah.number)}
+                  />
+                </Box>                {/* النص العثماني */}
+                <UthmaniText 
+                  paragraph 
+                  className="uthmani-text"
+                  sx={{
+                    fontFamily: '"Amiri Quran", "KFGQPC Uthmanic Script HAFS", "Noto Naskh Arabic", serif !important',
+                    fontSize: '32px !important',
+                    lineHeight: '2.5 !important',
+                    textAlign: 'right !important',
+                    direction: 'rtl !important',
+                    letterSpacing: '0.5px !important',
+                    wordSpacing: '8px !important',
+                  }}
+                >
                   {ayah.textUthmani}
-                </UthmaniText>
-
-                {/* تقسيم الكلمات (اختياري) */}
-                {showWordBreakdown && (
+                </UthmaniText>{/* تقسيم الكلمات (مخفي لتحسين التجربة) */}
+                {false && showWordBreakdown && (
                   <>
                     <Divider sx={{ my: 2 }} />
                     <Typography variant="subtitle2" gutterBottom color="text.secondary">
