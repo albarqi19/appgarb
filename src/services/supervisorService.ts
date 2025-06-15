@@ -105,17 +105,50 @@ export interface SupervisorCirclesResponse {
 }
 
 export interface SupervisorStatistics {
-  total_supervisors: number;
-  active_supervisors: number;
-  total_mosques: number;
-  total_circles: number;
-  total_teachers: number;
-  total_students: number;
-  attendance_rate: number;
-  performance_metrics: {
+  circles_count: number; // عدد الحلقات المشرف عليها
+  students_count: number; // عدد الطلاب الإجمالي
+  teachers_count: number; // عدد المعلمين
+  mosques_count: number; // عدد المساجد المشرف عليها  
+  attendance_rate: number; // معدل الحضور
+  transfer_requests: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    completed: number;
+  };
+  performance_metrics?: {
     excellent_students: number;
     good_students: number;
     needs_improvement: number;
+    average_score: number;
+  };
+  recent_activities?: {
+    new_students_this_week: number;
+    evaluations_pending: number;
+    reports_generated: number;
+  };
+  // إضافة الهياكل الجديدة للبيانات المرجعة من API
+  supervisors?: {
+    total_students: number;
+    total_teachers: number;
+    mosques_count: number;
+    students_count: number;
+    teachers_count: number;
+    attendance_rate: number;
+    teacher_attendance_rate: number;
+    pending_transfers: number;
+    transfer_requests: number;
+    present_teachers: number;
+  };
+  circles?: {
+    total_mosques: number;
+    total_circles: number;
+    active_circles: number;
+  };
+  averages?: {
+    students_per_circle: number;
+    teachers_per_mosque: number;
   };
 }
 
@@ -313,7 +346,7 @@ export const getSupervisorCircles = async (supervisorId?: number, token?: string
 };
 
 /**
- * جلب إحصائيات المشرفين
+ * جلب إحصائيات المشرفين - محدثة لاستخدام الـ endpoint الصحيح
  */
 export const getSupervisorStatistics = async (token?: string): Promise<SupervisorStatistics | null> => {
   try {
@@ -327,8 +360,7 @@ export const getSupervisorStatistics = async (token?: string): Promise<Superviso
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    }
-
+    }    // استخدام الـ endpoint الصحيح للمشرف حسب التوثيق
     const response = await fetch(`${API_BASE_URL}/supervisors/statistics`, {
       method: 'GET',
       headers,
@@ -336,7 +368,21 @@ export const getSupervisorStatistics = async (token?: string): Promise<Superviso
 
     if (!response.ok) {
       console.warn(`فشل في جلب إحصائيات المشرفين: ${response.status}`);
-      return null;
+      // إرجاع بيانات تجريبية في حالة فشل API
+      return {
+        circles_count: 0,
+        students_count: 0,
+        teachers_count: 0,
+        mosques_count: 0,
+        attendance_rate: 0,
+        transfer_requests: {
+          total: 0,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          completed: 0
+        }
+      };
     }
 
     const data: SupervisorStatisticsResponse = await response.json();
@@ -350,7 +396,135 @@ export const getSupervisorStatistics = async (token?: string): Promise<Superviso
 
   } catch (error) {
     console.error('❌ خطأ في جلب إحصائيات المشرفين:', error);
-    return null;
+    // إرجاع بيانات افتراضية في حالة الخطأ
+    return {
+      circles_count: 0,
+      students_count: 0,
+      teachers_count: 0,
+      mosques_count: 0,
+      attendance_rate: 0,
+      transfer_requests: {
+        total: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        completed: 0
+      }
+    };
+  }
+};
+
+/**
+ * طلب نقل طالب - حسب التوثيق
+ */
+export const requestStudentTransfer = async (transferData: any, token?: string): Promise<boolean> => {
+  try {
+    console.log('📤 إرسال طلب نقل طالب:', transferData);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/student-transfer`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(transferData)
+    });
+
+    if (!response.ok) {
+      console.error(`فشل في إرسال طلب النقل: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم إرسال طلب النقل بنجاح:', data);
+    
+    return data.success;
+
+  } catch (error) {
+    console.error('❌ خطأ في إرسال طلب النقل:', error);
+    return false;
+  }
+};
+
+/**
+ * تسجيل حضور معلم - حسب التوثيق
+ */
+export const recordTeacherAttendance = async (attendanceData: any, token?: string): Promise<boolean> => {
+  try {
+    console.log('📋 تسجيل حضور معلم:', attendanceData);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/teacher-attendance`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(attendanceData)
+    });
+
+    if (!response.ok) {
+      console.error(`فشل في تسجيل الحضور: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم تسجيل الحضور بنجاح:', data);
+    
+    return data.success;
+
+  } catch (error) {
+    console.error('❌ خطأ في تسجيل الحضور:', error);
+    return false;
+  }
+};
+
+/**
+ * جلب طلبات النقل - حسب التوثيق
+ */
+export const getTransferRequests = async (token?: string): Promise<any[]> => {
+  try {
+    console.log('📋 جلب طلبات النقل');
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/transfer-requests`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.warn(`فشل في جلب طلبات النقل: ${response.status}`);
+      return [];
+    }    const data = await response.json();
+    console.log('✅ تم جلب طلبات النقل:', data);
+    
+    return data.success ? data.data : [];
+
+  } catch (error) {
+    console.error('❌ خطأ في جلب طلبات النقل:', error);
+    return [];
   }
 };
 
@@ -406,6 +580,237 @@ export const getSupervisorCompleteData = async (supervisorId: number, token?: st
         avgStudentsPerCircle: 0
       }
     };
+  }
+};
+
+/**
+ * إنشاء تقرير لمعلم - حسب التوثيق
+ */
+export const createTeacherReport = async (reportData: any, token?: string): Promise<boolean> => {
+  try {
+    console.log('📋 إنشاء تقرير للمعلم:', reportData);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/teacher-report`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reportData)
+    });
+
+    if (!response.ok) {
+      console.error(`فشل في إنشاء تقرير المعلم: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم إنشاء تقرير المعلم بنجاح:', data);
+    
+    return data.success;
+
+  } catch (error) {
+    console.error('❌ خطأ في إنشاء تقرير المعلم:', error);
+    return false;
+  }
+};
+
+/**
+ * الحصول على تقرير شامل لمعلم - حسب التوثيق
+ */
+export const getTeacherReport = async (teacherId: number, token?: string): Promise<any | null> => {
+  try {
+    console.log('📊 جلب تقرير المعلم:', teacherId);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/teacher-report/${teacherId}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.warn(`فشل في جلب تقرير المعلم: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم جلب تقرير المعلم بنجاح:', data);
+    
+    return data.success ? data.data : null;
+
+  } catch (error) {
+    console.error('❌ خطأ في جلب تقرير المعلم:', error);
+    return null;
+  }
+};
+
+/**
+ * إنشاء تقييم جديد لمعلم - حسب التوثيق
+ */
+export const createTeacherEvaluation = async (evaluationData: any, token?: string): Promise<boolean> => {
+  try {
+    console.log('⭐ إنشاء تقييم للمعلم:', evaluationData);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/teacher-evaluations`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(evaluationData)
+    });
+
+    if (!response.ok) {
+      console.error(`فشل في إنشاء تقييم المعلم: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم إنشاء تقييم المعلم بنجاح:', data);
+    
+    return data.success;
+
+  } catch (error) {
+    console.error('❌ خطأ في إنشاء تقييم المعلم:', error);
+    return false;
+  }
+};
+
+/**
+ * الحصول على تقييمات معلم محدد - حسب التوثيق
+ */
+export const getTeacherEvaluations = async (teacherId: number, token?: string): Promise<any | null> => {
+  try {
+    console.log('🔍 جلب تقييمات المعلم:', teacherId);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/teacher-evaluations/${teacherId}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.warn(`فشل في جلب تقييمات المعلم: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم جلب تقييمات المعلم بنجاح:', data);
+    
+    return data.success ? data.data : null;
+
+  } catch (error) {
+    console.error('❌ خطأ في جلب تقييمات المعلم:', error);
+    return null;
+  }
+};
+
+/**
+ * الموافقة على طلب نقل - حسب التوثيق
+ */
+export const approveTransferRequest = async (requestId: number, token?: string): Promise<boolean> => {
+  try {
+    console.log('✅ الموافقة على طلب النقل:', requestId);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/transfer-requests/${requestId}/approve`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.error(`فشل في الموافقة على النقل: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ تمت الموافقة على النقل بنجاح:', data);
+    
+    return data.success;
+
+  } catch (error) {
+    console.error('❌ خطأ في الموافقة على النقل:', error);
+    return false;
+  }
+};
+
+/**
+ * رفض طلب نقل - حسب التوثيق
+ */
+export const rejectTransferRequest = async (requestId: number, reason: string, token?: string): Promise<boolean> => {
+  try {
+    console.log('❌ رفض طلب النقل:', requestId, reason);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/supervisors/transfer-requests/${requestId}/reject`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ reason })
+    });
+
+    if (!response.ok) {
+      console.error(`فشل في رفض النقل: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('✅ تم رفض النقل بنجاح:', data);
+    
+    return data.success;
+
+  } catch (error) {
+    console.error('❌ خطأ في رفض النقل:', error);
+    return false;
   }
 };
 
@@ -484,5 +889,14 @@ export default {
   getSupervisorCompleteData,
   convertApiTeacherToLocal,
   convertApiStudentToLocal,
-  convertApiCircleToLocal
+  convertApiCircleToLocal,
+  requestStudentTransfer,
+  recordTeacherAttendance,
+  getTransferRequests,
+  createTeacherReport,
+  getTeacherReport,
+  createTeacherEvaluation,
+  getTeacherEvaluations,
+  approveTransferRequest,
+  rejectTransferRequest
 };

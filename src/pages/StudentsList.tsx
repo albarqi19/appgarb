@@ -7,6 +7,7 @@ import {
   Card,
   CardContent, 
   CardHeader, 
+  CardActionArea,
   Avatar, 
   IconButton, 
   Box, 
@@ -26,11 +27,12 @@ import {
   InputLabel,
   Tab,
   Tabs,
-  useTheme,
-  Fab,
+  useTheme,  Fab,
   Popover,
   Fade,
-  Zoom
+  Zoom,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -63,7 +65,7 @@ const StudentsList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentMosque, setSelectedStudent, user } = useAppContext();
-  const theme = useTheme();  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const theme = useTheme();const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [displayedStudents, setDisplayedStudents] = useState<Student[]>([]);
   const [apiStudents, setApiStudents] = useState<StudentWithMosque[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,9 +78,12 @@ const StudentsList: React.FC = () => {
   const [absentAlertOpen, setAbsentAlertOpen] = useState(false);
   const [selectedStudentForAlert, setSelectedStudentForAlert] = useState<Student | null>(null);
   const [alertAttendanceStatus, setAlertAttendanceStatus] = useState<'غائب' | 'مستأذن'>('غائب');
-  const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});
-  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});  const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [showAttendanceHint, setShowAttendanceHint] = useState(false);
+  
+  // إشعار نجاح العمليات
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   
   // مرجع لمنع التحميل المضاعف
   const loadingRef = useRef(false);
@@ -182,7 +187,6 @@ const StudentsList: React.FC = () => {
       setShowAttendanceHint(false);
     }
   }, [filteredStudents, hasTeacherCircles, todayAttendance]);
-
   // التعامل مع حالة التنقل من صفحة خيارات التسميع
   useEffect(() => {
     // التحقق من وجود state يشير إلى فتح نافذة التحضير
@@ -191,6 +195,16 @@ const StudentsList: React.FC = () => {
       setAttendanceDialogOpen(true);
       
       // مسح الـ state بعد الاستخدام لتجنب فتح النافذة مرة أخرى
+      navigate('/students', { replace: true });
+    }
+    
+    // التحقق من وجود إشعار نجاح
+    if (location.state?.showSuccessNotification) {
+      const message = location.state.message || 'تمت العملية بنجاح!';
+      setSuccessMessage(message);
+      setShowSuccessSnackbar(true);
+      
+      // مسح الـ state بعد الاستخدام
       navigate('/students', { replace: true });
     }
   }, [location.state, filteredStudents.length, navigate]);
@@ -494,9 +508,7 @@ const StudentsList: React.FC = () => {
       // معلومات تشخيصية مختصرة
       if (error instanceof Error) {
         console.error('💬 رسالة الخطأ:', error.message);
-      }
-    }
-  };
+      }    }  };
 
   return (
     <Box 
@@ -560,12 +572,10 @@ const StudentsList: React.FC = () => {
               />
             </Box>
           </Box>
-        </Paper>
-
-        {/* إحصائيات وفلاتر */}
+        </Paper>        {/* إحصائيات وفلاتر */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* إحصائيات */}
-          <Grid item xs={12} sm={6} md={9}>
+          <Grid item xs={12} md={9}>
             <Paper
               elevation={0}
               sx={{ 
@@ -678,10 +688,8 @@ const StudentsList: React.FC = () => {
                 <Typography variant="body2" color="text.secondary">الطلاب المتميزون</Typography>
               </Box>
             </Paper>
-          </Grid>
-
-          {/* بحث */}
-          <Grid item xs={12} sm={6} md={3}>
+          </Grid>          {/* بحث - يظهر فقط في الشاشات الكبيرة */}
+          <Grid item xs={12} sm={6} md={3} sx={{ display: { xs: 'none', md: 'block' } }}>
             <Paper
               elevation={0}
               sx={{ 
@@ -833,323 +841,518 @@ const StudentsList: React.FC = () => {
                 />
               </Paper>
             </Grid>
-          </Grid>
-        ) : (
-          <Grid container spacing={3}>        {displayedStudents.length > 0 ? (
-            displayedStudents.map(student => {
-              const attendanceStatus = getAttendanceStatus(student);
-              const analytics = studentAnalytics[student.id];
-              
-              return (
-                <Grid item xs={12} sm={6} md={4} key={student.id}>
-                  <Card 
-                    sx={{ 
-                      borderRadius: 3,
-                      overflow: 'hidden',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s',
-                      boxShadow: '0 5px 15px rgba(0,0,0,0.05)',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 8px 20px rgba(0,0,0,0.1)'
-                      }
-                    }}
-                    onClick={() => handleStudentSelection(student)}
-                  >
-                    <Box 
-                      sx={{ 
-                        height: 15, 
-                        width: '100%', 
-                        bgcolor: attendanceStatus === 'حاضر' ? 'success.main' :
-                                attendanceStatus === 'متأخر' ? 'warning.main' :
-                                attendanceStatus === 'مستأذن' ? 'info.main' : 'error.main',
-                        position: 'absolute',
-                        top: 0,
-                        zIndex: 1
-                      }}                    />
-                    
-                    <CardHeader
-                      avatar={
-                        <Avatar 
+          </Grid>        ) : (
+          <>
+            {/* قائمة الطلاب - مع مسافة علوية كافية */}
+            <Box sx={{ mt: 4 }}>
+              {displayedStudents.length > 0 ? (
+                <>
+                  {/* عرض البطاقات في الشاشات الكبيرة */}
+                  <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                    <Grid container spacing={3}>
+                    {displayedStudents.map(student => {
+                      const attendanceStatus = getAttendanceStatus(student);
+                      const analytics = studentAnalytics[student.id];
+                  
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={student.id}>
+                      <Card 
+                        sx={{ 
+                          borderRadius: 3,
+                          overflow: 'hidden',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s',
+                          boxShadow: '0 5px 15px rgba(0,0,0,0.05)',
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: '0 8px 20px rgba(0,0,0,0.1)'
+                          }
+                        }}
+                        onClick={() => handleStudentSelection(student)}
+                      >
+                        <Box 
                           sx={{ 
-                            bgcolor: 'primary.main', 
-                            width: 50,
-                            height: 50,
-                            boxShadow: '0 3px 6px rgba(0,0,0,0.1)',
-                            border: '2px solid white'
-                          }}                        >
-                          {student.name ? student.name.charAt(0) : '؟'}
-                        </Avatar>
-                      }
-                      title={
-                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5 }}>
-                          {student.name}
-                        </Typography>
-                      }
-                      subheader={
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <FaceIcon fontSize="small" color="disabled" />
-                          <Typography variant="body2" color="text.secondary">
-                            {student.level} | {student.age} سنة
-                          </Typography>
-                        </Stack>
-                      }
-                      sx={{ pt: 4, pb: 1 }}
-                    />
-                    
-                    <CardContent sx={{ pt: 0 }}>
-                      <Box sx={{ mt: 2, mb: 3 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            <MenuBookIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                            الحفظ الحالي:
-                          </Typography>
-                          <Chip 
-                            label={student.totalScore >= 90 ? "ممتاز" : student.totalScore >= 75 ? "جيد جداً" : "متوسط"} 
-                            color={student.totalScore >= 90 ? "success" : student.totalScore >= 75 ? "primary" : "warning"}
-                            size="small"
-                            sx={{ fontSize: '0.7rem', height: 20 }}
-                          />
-                        </Box>
-                        <Paper 
-                          variant="outlined" 
-                          sx={{ 
-                            p: 1, 
-                            bgcolor: 'background.default',
-                            borderRadius: 2,
-                            textAlign: 'center',
-                            borderColor: 'divider'
+                            height: 15, 
+                            width: '100%', 
+                            bgcolor: attendanceStatus === 'حاضر' ? 'success.main' :
+                                    attendanceStatus === 'متأخر' ? 'warning.main' :
+                                    attendanceStatus === 'مستأذن' ? 'info.main' : 'error.main',
+                            position: 'absolute',
+                            top: 0,
+                            zIndex: 1
                           }}
-                        >
-                          <Typography variant="body2" fontWeight="medium">
-                            سورة {student.currentMemorization.surahName} ({student.currentMemorization.fromAyah}-{student.currentMemorization.toAyah})
-                          </Typography>
-                        </Paper>
-                      </Box>
-                      
-                      <Divider sx={{ my: 1 }} />
-                      
-                      {analytics && (
-                        <Box sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">التقدم الشهري</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              {getTrendIcon(student.id)}
-                              <Typography 
-                                variant="caption" 
-                                sx={{ 
-                                  ml: 0.5,
-                                  color: analytics.progress.trend === 'up' ? 'success.main' : 
-                                         analytics.progress.trend === 'down' ? 'error.main' : 
-                                         'info.main'
-                                }}
-                              >
-                                {analytics.progress.lastMonth > 0 ? `+${analytics.progress.lastMonth}%` : 
-                                 analytics.progress.lastMonth < 0 ? `${analytics.progress.lastMonth}%` : 'مستقر'}
-                              </Typography>
-                            </Box>
-                          </Box>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={Math.max(0, Math.min(100, 50 + analytics.progress.lastMonth/2))} 
-                            sx={{ height: 6, borderRadius: 3 }}
-                            color={analytics.progress.trend === 'up' ? 'success' : 
-                                  analytics.progress.trend === 'down' ? 'error' : 'info'}
-                          />
-                        </Box>
-                      )}
-                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                        <Tooltip title={`الدرجة: ${student.totalScore}%`}>
-                          <Chip 
-                            icon={<GradeIcon />}
-                            label={`${student.totalScore}%`} 
-                            color={student.totalScore >= 90 ? "success" : student.totalScore >= 75 ? "primary" : "warning"}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Tooltip>
-
-                        <Tooltip title={`حالة الحضور اليوم`}>
-                          {loadingAttendance ? (
-                            <Chip 
-                              icon={<CircularProgress size={16} />}
-                              label="جاري التحديث..."
-                              color="info"
-                              size="small"
-                              variant="outlined"
-                            />
-                          ) : (
-                            <Chip 
-                              label={attendanceStatus || 'غير محدد'}
-                              color={
-                                attendanceStatus === 'حاضر' ? "success" : 
-                                attendanceStatus === 'متأخر' ? "warning" :
-                                attendanceStatus === 'مستأذن' ? "info" : 
-                                "error"
-                              }
-                              size="small"
+                        />
+                        
+                        <CardHeader
+                          avatar={
+                            <Avatar 
                               sx={{ 
-                                fontWeight: 'bold',
-                                transition: 'all 0.3s ease'
+                                bgcolor: 'primary.main', 
+                                width: 50,
+                                height: 50,
+                                boxShadow: '0 3px 6px rgba(0,0,0,0.1)',
+                                border: '2px solid white'
                               }}
-                            />
+                            >
+                              {student.name ? student.name.charAt(0) : '؟'}
+                            </Avatar>
+                          }
+                          title={
+                            <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5 }}>
+                              {student.name}
+                            </Typography>
+                          }
+                          subheader={
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <FaceIcon fontSize="small" color="disabled" />
+                              <Typography variant="body2" color="text.secondary">
+                                {student.level} | {student.age} سنة
+                              </Typography>
+                            </Stack>
+                          }
+                          sx={{ pt: 4, pb: 1 }}
+                        />
+                        
+                        <CardContent sx={{ pt: 0 }}>
+                          <Box sx={{ mt: 2, mb: 3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                <MenuBookIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
+                                الحفظ الحالي:
+                              </Typography>
+                              <Chip 
+                                label={student.totalScore >= 90 ? "ممتاز" : student.totalScore >= 75 ? "جيد جداً" : "متوسط"} 
+                                color={student.totalScore >= 90 ? "success" : student.totalScore >= 75 ? "primary" : "warning"}
+                                size="small"
+                                sx={{ fontSize: '0.7rem', height: 20 }}
+                              />
+                            </Box>
+                            <Paper 
+                              variant="outlined" 
+                              sx={{ 
+                                p: 1, 
+                                bgcolor: 'background.default',
+                                borderRadius: 2,
+                                textAlign: 'center',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight="medium">
+                                سورة {student.currentMemorization.surahName} ({student.currentMemorization.fromAyah}-{student.currentMemorization.toAyah})
+                              </Typography>
+                            </Paper>
+                          </Box>
+                          
+                          <Divider sx={{ my: 1 }} />
+                          
+                          {analytics && (
+                            <Box sx={{ mb: 2 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary">التقدم الشهري</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  {getTrendIcon(student.id)}
+                                  <Typography 
+                                    variant="caption" 
+                                    sx={{ 
+                                      ml: 0.5,
+                                      color: analytics.progress.trend === 'up' ? 'success.main' : 
+                                             analytics.progress.trend === 'down' ? 'error.main' : 
+                                             'info.main'
+                                    }}
+                                  >
+                                    {analytics.progress.lastMonth > 0 ? `+${analytics.progress.lastMonth}%` : 
+                                     analytics.progress.lastMonth < 0 ? `${analytics.progress.lastMonth}%` : 'مستقر'}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={Math.max(0, Math.min(100, 50 + analytics.progress.lastMonth/2))} 
+                                sx={{ height: 6, borderRadius: 3 }}
+                                color={analytics.progress.trend === 'up' ? 'success' : 
+                                      analytics.progress.trend === 'down' ? 'error' : 'info'}
+                              />
+                            </Box>
                           )}
-                        </Tooltip>
+                          
+                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                            <Tooltip title={`الدرجة: ${student.totalScore}%`}>
+                              <Chip 
+                                icon={<GradeIcon />}
+                                label={`${student.totalScore}%`} 
+                                color={student.totalScore >= 90 ? "success" : student.totalScore >= 75 ? "primary" : "warning"}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </Tooltip>
 
-                        <Tooltip title={`نسبة الحضور: ${student.attendanceRate}%`}>
-                          <Chip 
-                            icon={<CalendarTodayIcon />}
-                            label={`${student.attendanceRate}%`}
-                            variant="outlined" 
-                            color={student.attendanceRate > 90 ? "success" : student.attendanceRate > 75 ? "info" : "warning"}
-                            size="small"
-                          />
-                        </Tooltip>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              );
-            })          ) : (
-            // حالة عدم وجود طلاب أو حلقات
-            <Grid item xs={12}>
-              <Paper
+                            <Tooltip title={`حالة الحضور اليوم`}>
+                              {loadingAttendance ? (
+                                <Chip 
+                                  icon={<CircularProgress size={16} />}
+                                  label="جاري التحديث..."
+                                  color="info"
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ) : (
+                                <Chip 
+                                  label={attendanceStatus || 'غير محدد'}
+                                  color={
+                                    attendanceStatus === 'حاضر' ? "success" : 
+                                    attendanceStatus === 'متأخر' ? "warning" :
+                                    attendanceStatus === 'مستأذن' ? "info" : 
+                                    "error"
+                                  }
+                                  size="small"
+                                  sx={{ 
+                                    fontWeight: 'bold',
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                />
+                              )}
+                            </Tooltip>
+
+                            <Tooltip title={`نسبة الحضور: ${student.attendanceRate}%`}>
+                              <Chip 
+                                icon={<CalendarTodayIcon />}
+                                label={`${student.attendanceRate}%`}
+                                variant="outlined" 
+                                color={student.attendanceRate > 90 ? "success" : student.attendanceRate > 75 ? "info" : "warning"}
+                                size="small"
+                              />
+                            </Tooltip>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>            {/* عرض القائمة المضغوطة في الجوال */}
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+              <Paper 
                 elevation={0}
-                sx={{
-                  p: 6,
-                  textAlign: 'center',
+                sx={{ 
+                  p: 2,
                   borderRadius: 3,
-                  bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900',
-                  border: `1px dashed ${theme.palette.divider}`,
                   boxShadow: '0 2px 12px rgba(0,0,0,0.05)'
                 }}
               >
-                {hasTeacherCircles === false ? (
-                  // حالة عدم وجود حلقات للمعلم
-                  <>
-                    <Avatar
-                      sx={{
-                        width: 80,
-                        height: 80,
-                        mx: 'auto',
-                        mb: 3,
-                        bgcolor: 'info.light',
-                        fontSize: '2rem'
-                      }}
-                    >
-                      <GroupAddIcon fontSize="large" />
-                    </Avatar>
-                    
-                    <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                      لا توجد حلقات مُسندة إليك حتى الآن
-                    </Typography>
-                    
-                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
-                      لعرض الطلاب، يجب أن تكون مُعيناً كمعلم لحلقة قرآنية واحدة على الأقل. 
-                      تواصل مع إدارة المسجد لتعيينك كمعلم في إحدى الحلقات.
-                    </Typography>
+                {displayedStudents.map((student, index) => {
+                  const attendanceStatus = getAttendanceStatus(student);
 
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 3,
-                        mb: 4,
-                        bgcolor: 'background.paper',
+                  return (                    <Card
+                      key={student.id}
+                      sx={{ 
+                        mb: index === displayedStudents.length - 1 ? 0 : 2,
                         borderRadius: 2,
-                        maxWidth: 500,
-                        mx: 'auto'
-                      }}
+                        boxShadow: 'none',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        position: 'relative',
+                        overflow: 'visible',
+                      '&:hover': {
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                        transform: 'translateY(-1px)'
+                      },
+                      transition: 'all 0.3s ease',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 4,
+                        bgcolor: attendanceStatus === 'حاضر' ? 'success.main' :
+                                attendanceStatus === 'متأخر' ? 'warning.main' :
+                                attendanceStatus === 'مستأذن' ? 'info.main' : 'error.main',
+                        borderRadius: '0 3px 3px 0'
+                      }
+                    }}
+                  >
+                    <CardActionArea
+                      onClick={() => handleStudentSelection(student)}
+                      sx={{ p: 2 }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <InfoIcon color="info" sx={{ mr: 1 }} />
-                        <Typography variant="h6" fontWeight="bold">
-                          كيفية إضافة حلقة قرآنية:
-                        </Typography>
-                      </Box>
-                      
-                      <Box component="ol" sx={{ textAlign: 'right', pl: 0, '& li': { mb: 1 } }}>
-                        <Typography component="li" variant="body2" color="text.secondary">
-                          تواصل مع إدارة المسجد أو مدير النظام
-                        </Typography>
-                        <Typography component="li" variant="body2" color="text.secondary">
-                          اطلب إنشاء حلقة قرآنية جديدة
-                        </Typography>
-                        <Typography component="li" variant="body2" color="text.secondary">
-                          سيتم تعيينك كمعلم للحلقة المُنشأة
-                        </Typography>
-                        <Typography component="li" variant="body2" color="text.secondary">
-                          بعدها يمكنك إضافة الطلاب للحلقة
-                        </Typography>
-                      </Box>
-                    </Paper>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {/* صورة الطالب */}
+                        <Avatar
+                          sx={{
+                            width: 42,
+                            height: 42,
+                            bgcolor: 'primary.main',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '1.1rem',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                          }}
+                        >
+                          {student.name ? student.name.charAt(0) : '؟'}
+                        </Avatar>
+                        
+                        {/* معلومات الطالب */}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography 
+                            variant="subtitle1" 
+                            sx={{ 
+                              fontWeight: 'bold', 
+                              mb: 0.3,
+                              fontSize: '1rem',
+                              color: 'text.primary',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {student.name}
+                          </Typography>
+                          
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'text.secondary',
+                              mb: 0.8,
+                              fontSize: '0.8rem',
+                              display: 'block'
+                            }}
+                          >
+                            {student.age} سنة
+                          </Typography>
+                            {/* الحفظ الحالي */}
+                          <Box 
+                            sx={{ 
+                              bgcolor: 'background.default',
+                              borderRadius: 2,
+                              p: 0.8,
+                              border: '1px solid',
+                              borderColor: 'divider'
+                            }}
+                          >
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                color: 'primary.main',
+                                fontWeight: 'medium',
+                                fontSize: '0.7rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'block'
+                              }}
+                            >
+                              📖 {student.currentMemorization.surahName} ({student.currentMemorization.fromAyah}-{student.currentMemorization.toAyah})
+                            </Typography>
+                          </Box>
+                        </Box>
+                        
+                        {/* معلومات الحضور والدرجات */}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, alignItems: 'flex-end' }}>
+                          {/* الدرجة */}
+                          <Chip
+                            size="small"
+                            label={`${student.totalScore}%`}
+                            sx={{
+                              bgcolor: student.totalScore >= 90 ? 'success.light' : 
+                                      student.totalScore >= 75 ? 'primary.light' : 'warning.light',
+                              color: student.totalScore >= 90 ? 'success.dark' : 
+                                    student.totalScore >= 75 ? 'primary.dark' : 'warning.dark',
+                              fontWeight: 'bold',
+                              fontSize: '0.7rem',
+                              height: 20,
+                              minWidth: 45
+                            }}
+                          />
+                          
+                          {/* حالة الحضور */}
+                          <Chip
+                            size="small"
+                            icon={getAttendanceIcon(attendanceStatus)}
+                            label={attendanceStatus || 'غير محدد'}
+                            sx={{
+                              bgcolor: attendanceStatus === 'حاضر' ? 'success.light' :
+                                      attendanceStatus === 'متأخر' ? 'warning.light' :
+                                      attendanceStatus === 'مستأذن' ? 'info.light' : 'error.light',
+                              color: attendanceStatus === 'حاضر' ? 'success.dark' :
+                                    attendanceStatus === 'متأخر' ? 'warning.dark' :
+                                    attendanceStatus === 'مستأذن' ? 'info.dark' : 'error.dark',
+                              fontWeight: 'bold',
+                              fontSize: '0.65rem',
+                              height: 20,
+                              minWidth: 65,
+                              '& .MuiChip-icon': {
+                                fontSize: '0.8rem'
+                              }
+                            }}
+                          />
+                          
+                          {/* نسبة الحضور */}
+                          <Chip
+                            size="small"
+                            label={`${student.attendanceRate}%`}
+                            sx={{
+                              bgcolor: student.attendanceRate > 90 ? 'success.light' : 
+                                      student.attendanceRate > 75 ? 'info.light' : 'warning.light',
+                              color: student.attendanceRate > 90 ? 'success.dark' : 
+                                    student.attendanceRate > 75 ? 'info.dark' : 'warning.dark',
+                              fontWeight: 'bold',
+                              fontSize: '0.65rem',
+                              height: 20,
+                              minWidth: 45
+                            }}
+                          />
+                        </Box>
+                      </Box>                    </CardActionArea>
+                  </Card>
+                );
+              })}
+              </Paper>
+            </Box>
+          </>
+        ) : (
+                // حالة عدم وجود طلاب أو حلقات
+                <Grid item xs={12}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 6,
+                textAlign: 'center',
+                borderRadius: 3,
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900',
+                border: `1px dashed ${theme.palette.divider}`,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.05)'
+              }}
+            >
+              {hasTeacherCircles === false ? (
+                // حالة عدم وجود حلقات للمعلم
+                <>
+                  <Avatar
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      mx: 'auto',
+                      mb: 3,
+                      bgcolor: 'info.light',
+                      fontSize: '2rem'
+                    }}
+                  >
+                    <GroupAddIcon fontSize="large" />
+                  </Avatar>
+                  
+                  <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
+                    لا توجد حلقات مُسندة إليك حتى الآن
+                  </Typography>
+                  
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
+                    لعرض الطلاب، يجب أن تكون مُعيناً كمعلم لحلقة قرآنية واحدة على الأقل. 
+                    تواصل مع إدارة المسجد لتعيينك كمعلم في إحدى الحلقات.
+                  </Typography>
 
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
-                      <Button 
-                        variant="contained" 
-                        size="large"
-                        onClick={() => navigate('/')}
-                        sx={{ 
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1.5
-                        }}
-                      >
-                        العودة للوحة الرئيسية
-                      </Button>
-                      <Button 
-                        variant="outlined" 
-                        size="large"
-                        onClick={() => window.location.reload()}
-                        sx={{ 
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1.5
-                        }}
-                      >
-                        تحديث الصفحة
-                      </Button>
-                    </Stack>
-                  </>
-                ) : (
-                  // حالة عدم وجود طلاب (للتصفية أو البحث)
-                  <>
-                    <Avatar
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        mx: 'auto',
-                        mb: 2,
-                        bgcolor: 'warning.light'
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 3,
+                      mb: 4,
+                      bgcolor: 'background.paper',
+                      borderRadius: 2,
+                      maxWidth: 500,
+                      mx: 'auto'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <InfoIcon color="info" sx={{ mr: 1 }} />
+                      <Typography variant="h6" fontWeight="bold">
+                        كيفية إضافة حلقة قرآنية:
+                      </Typography>
+                    </Box>
+                    
+                    <Box component="ol" sx={{ textAlign: 'right', pl: 0, '& li': { mb: 1 } }}>
+                      <Typography component="li" variant="body2" color="text.secondary">
+                        تواصل مع إدارة المسجد أو مدير النظام
+                      </Typography>
+                      <Typography component="li" variant="body2" color="text.secondary">
+                        اطلب إنشاء حلقة قرآنية جديدة
+                      </Typography>
+                      <Typography component="li" variant="body2" color="text.secondary">
+                        سيتم تعيينك كمعلم للحلقة المُنشأة
+                      </Typography>
+                      <Typography component="li" variant="body2" color="text.secondary">
+                        بعدها يمكنك إضافة الطلاب للحلقة
+                      </Typography>
+                    </Box>
+                  </Paper>
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+                    <Button 
+                      variant="contained" 
+                      size="large"
+                      onClick={() => navigate('/')}
+                      sx={{ 
+                        borderRadius: 2,
+                        px: 4,
+                        py: 1.5
                       }}
                     >
-                      <SearchIcon fontSize="large" />
-                    </Avatar>
-                    
-                    <Typography variant="h6" color="text.primary" gutterBottom>
-                      لا يوجد طلاب بالمعايير المحددة
-                    </Typography>
-                    
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      جرب تغيير معايير البحث أو الفلترة لعرض المزيد من النتائج
-                    </Typography>
-                    
+                      العودة للوحة الرئيسية
+                    </Button>
                     <Button 
                       variant="outlined" 
-                      onClick={() => {
-                        setSearchQuery('');
-                        setFilterLevel('all');
-                        setActiveTab(0);
+                      size="large"
+                      onClick={() => window.location.reload()}
+                      sx={{ 
+                        borderRadius: 2,
+                        px: 4,
+                        py: 1.5
                       }}
-                      sx={{ borderRadius: 2 }}
                     >
-                      عرض جميع الطلاب
+                      تحديث الصفحة
                     </Button>
-                  </>                )}
-              </Paper>
-            </Grid>
-          )}        </Grid>
-        )}        {/* زر التحضير العائم - يظهر فقط عند وجود طلاب */}
+                  </Stack>
+                </>
+              ) : (
+                // حالة عدم وجود طلاب (للتصفية أو البحث)
+                <>
+                  <Avatar
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      mx: 'auto',
+                      mb: 2,
+                      bgcolor: 'warning.light'
+                    }}
+                  >
+                    <SearchIcon fontSize="large" />
+                  </Avatar>
+                  
+                  <Typography variant="h6" color="text.primary" gutterBottom>
+                    لا يوجد طلاب بالمعايير المحددة
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    جرب تغيير معايير البحث أو الفلترة لعرض المزيد من النتائج
+                  </Typography>
+                  
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterLevel('all');
+                      setActiveTab(0);
+                    }}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    عرض جميع الطلاب                  </Button>
+                </>
+              )}
+            </Paper>
+          </Grid>
+        )}
+            </Box>
+          </>
+        )}
+
+        {/* زر التحضير العائم - يظهر فقط عند وجود طلاب */}
         {filteredStudents.length > 0 && hasTeacherCircles === true && (
           <Fab
             color="primary"
@@ -1236,9 +1439,7 @@ const StudentsList: React.FC = () => {
           teacherId={user?.id?.toString() || ''}
           onSuccess={handleAttendanceSuccess}
           initialAttendance={todayAttendance}
-        />
-
-        {/* نافذة تنبيه حالة الحضور */}
+        />        {/* نافذة تنبيه حالة الحضور */}
         <StudentAbsentAlert
           open={absentAlertOpen}
           onClose={() => {
@@ -1250,6 +1451,32 @@ const StudentsList: React.FC = () => {
           attendanceStatus={alertAttendanceStatus}
           onContinue={alertAttendanceStatus !== 'غائب' ? handleContinueToMemorization : undefined}
         />
+
+        {/* إشعار نجاح العمليات */}
+        <Snackbar
+          open={showSuccessSnackbar}
+          onClose={() => setShowSuccessSnackbar(false)}
+          autoHideDuration={2000}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'center'
+          }}
+        >
+          <Alert 
+            onClose={() => setShowSuccessSnackbar(false)} 
+            severity="success" 
+            variant="filled"
+            icon={<CheckCircleIcon />}
+            sx={{ 
+              borderRadius: 2,
+              fontWeight: 'medium',
+              fontSize: '0.95rem',
+              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+            }}
+          >
+            {successMessage}
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   );

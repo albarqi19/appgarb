@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Container,
   Grid,
@@ -56,6 +57,13 @@ import supervisorService, {
   SupervisorCircle,
   SupervisorStatistics 
 } from '../services/supervisorService';
+// استيراد خدمة النظرة الشاملة
+import comprehensiveService, { 
+  ComprehensiveOverview,
+  ComprehensiveMosque,
+  ComprehensiveCircle 
+} from '../services/comprehensiveService';
+import ComprehensiveView from '../components/ComprehensiveView';
 
 // أيقونات
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
@@ -107,68 +115,69 @@ const SupervisorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const { user } = useAppContext();
-  const [activeTab, setActiveTab] = useState(0);
-  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState('');
   const [transferReason, setTransferReason] = useState('');
   const [targetMosque, setTargetMosque] = useState('');
-  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState('');
+  const [targetCircle, setTargetCircle] = useState(''); // إضافة اختيار الحلقة
+  const [transferType, setTransferType] = useState('mosque'); // نوع النقل: mosque أو circle
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);  const [selectedTeacher, setSelectedTeacher] = useState('');
   const [attendanceStatus, setAttendanceStatus] = useState('');
   const [attendanceNotes, setAttendanceNotes] = useState('');
 
-  // حالات البيانات من API
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<SupervisorDashboardData | null>(null);
-  const [supervisorTeachers, setSupervisorTeachers] = useState<SupervisorTeacher[]>([]);
-  const [supervisorStudents, setSupervisorStudents] = useState<SupervisorStudent[]>([]);
-  const [supervisorCircles, setSupervisorCircles] = useState<SupervisorCircle[]>([]);
-  const [supervisorStats, setSupervisorStats] = useState<SupervisorStatistics | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // متغيرات البحث والفلترة
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMosqueFilter, setSelectedMosqueFilter] = useState('');
+  const [selectedCircleFilter, setSelectedCircleFilter] = useState('');
+  const [scoreRangeFilter, setScoreRangeFilter] = useState('all');
+  // حالات البيانات باستخدام React Query
+  const supervisorId = 1; // مؤقتاً - يجب الحصول عليه من user context
+  // جلب البيانات الشاملة للمشرف باستخدام React Query
+  const {
+    data: completeData,
+    isLoading: loading,
+    error: queryError,
+    isError
+  } = useQuery({
+    queryKey: ['supervisorCompleteData', supervisorId],
+    queryFn: async () => {
+      console.log('🚀 React Query: بدء جلب بيانات المشرف من API');
+      const result = await supervisorService.getSupervisorCompleteData(supervisorId, user?.token);
+      console.log('✅ React Query: تم جلب البيانات من API:', result);
+      return result;
+    },
+    enabled: true, // تفعيل Query دائماً لأن API يعمل بدون token في البيئة الحالية
+    retry: 1, // إعادة المحاولة مرة واحدة عند الفشل
+  });
+
+  // استخراج البيانات من الاستجابة
+  const dashboardData = completeData?.dashboard || null;
+  const supervisorTeachers = completeData?.teachers || [];
+  const supervisorStudents = completeData?.students || [];
+  const supervisorCircles = completeData?.circles || [];
+  const supervisorStats = completeData?.statistics || null;
+  const error = isError ? 'فشل في تحميل بيانات المشرف' : null;
+
+  // البيانات الشاملة الجديدة
+  const [comprehensiveData, setComprehensiveData] = useState<ComprehensiveOverview | null>(null);
 
   // بيانات المشرف الحالي (مؤقتاً من البيانات المحلية)
   const currentSupervisor = supervisors[0];
   const supervisedMosquesList = mosques.filter(m => currentSupervisor.supervisedMosques.includes(m.id));
-  const supervisedStudents = students.filter(s => currentSupervisor.supervisedMosques.includes(s.mosqueId));
-  const todayAttendance = teacherAttendanceData.filter(ta => ta.date === '2025-06-07' && currentSupervisor.supervisedMosques.includes(ta.mosqueId));
+  const supervisedStudents = students.filter(s => currentSupervisor.supervisedMosques.includes(s.mosqueId));  const todayAttendance = teacherAttendanceData.filter(ta => ta.date === '2025-06-07' && currentSupervisor.supervisedMosques.includes(ta.mosqueId));
 
-  // جلب البيانات من APIs الحقيقية
-  useEffect(() => {
-    const fetchSupervisorData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log('🚀 بدء جلب بيانات المشرف');
-        
-        // استخدام معرف المشرف من المستخدم الحالي (مؤقتاً استخدم رقم 1)
-        const supervisorId = 1;
-        
-        // جلب البيانات الشاملة
-        const completeData = await supervisorService.getSupervisorCompleteData(supervisorId, user?.token);
-        
-        // تحديث الحالات
-        setDashboardData(completeData.dashboard);
-        setSupervisorTeachers(completeData.teachers);
-        setSupervisorStudents(completeData.students);
-        setSupervisorCircles(completeData.circles);
-        setSupervisorStats(completeData.statistics);
-        
-        console.log('✅ تم جلب بيانات المشرف بنجاح:', completeData);
-        
-      } catch (error) {
-        console.error('❌ خطأ في جلب بيانات المشرف:', error);
-        setError('فشل في تحميل بيانات المشرف');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSupervisorData();
-  }, [user?.id, user?.token]);
   // الحصول على إحصائيات المشرف (محدثة لاستخدام البيانات من API)
   const getSupervisorStats = () => {
-    if (loading || !supervisorStats) {
+    console.log('🔍 فحص البيانات:', {
+      loading,
+      supervisorStats,
+      hasStats: !!supervisorStats,
+      supervisorCircles: supervisorCircles.length,
+      supervisorStudents: supervisorStudents.length,
+      supervisorTeachers: supervisorTeachers.length
+    });
+
+    if (loading) {
       // إرجاع قيم افتراضية أثناء التحميل
       return {
         totalMosques: 0,
@@ -178,9 +187,46 @@ const SupervisorDashboard: React.FC = () => {
         presentTeachers: 0,
         totalTeachers: 0
       };
+    }    // استخدام البيانات من API إذا توفرت
+    if (supervisorStats) {
+      console.log('✅ استخدام بيانات API:', supervisorStats);
+        // التحقق من هيكل البيانات الجديد باستخدام any cast
+      const stats = supervisorStats as any;      if (stats.supervisors && stats.circles) {
+        const supervisorData = stats.supervisors;
+        const circlesData = stats.circles;
+        
+        console.log('🔍 بيانات المشرفين:', supervisorData);
+        console.log('🔍 بيانات الحلقات:', circlesData);
+        
+        // استخدام الهيكل الصحيح للبيانات
+        const result = {
+          totalMosques: circlesData.total || 0, // استخدام إجمالي الحلقات كعدد المساجد
+          totalStudents: supervisorStudents.length || 0, // من البيانات المحملة
+          attendanceRate: 85, // قيمة مؤقتة - يمكن حسابها من البيانات
+          pendingTransfers: 0, // من البيانات المحملة
+          presentTeachers: supervisorData.active || 0,
+          totalTeachers: supervisorTeachers.length || 0 // من البيانات المحملة
+        };
+        
+        console.log('📊 الإحصائيات المحسوبة من API:', result);
+        return result;
+      }
+        // الهيكل القديم للتوافق
+      const fallbackResult = {
+        totalMosques: supervisorStats.mosques_count || 0,
+        totalStudents: supervisorStats.students_count || 0,
+        attendanceRate: supervisorStats.attendance_rate || 0,
+        pendingTransfers: supervisorStats.transfer_requests?.pending || 0,
+        presentTeachers: Math.round((supervisorStats.attendance_rate / 100) * supervisorStats.teachers_count) || 0,
+        totalTeachers: supervisorStats.teachers_count || 0
+      };
+      
+      console.log('📊 الإحصائيات من الهيكل القديم:', fallbackResult);
+      return fallbackResult;
     }
 
-    // استخدام البيانات من API
+    // البيانات المحسوبة من البيانات المحملة محلياً كبديل
+    console.log('🔄 استخدام البيانات المحلية كبديل');
     const totalMosques = new Set(supervisorCircles.map(c => c.mosque.id)).size;
     const totalStudents = supervisorStudents.length;
     const totalTeachers = supervisorTeachers.length;
@@ -200,27 +246,53 @@ const SupervisorDashboard: React.FC = () => {
     };
   };
 
-  const stats = getSupervisorStats();
-  // معالجة طلب نقل طالب - محدث للعمل مع APIs
+  const stats = useMemo(() => getSupervisorStats(), [
+    loading, 
+    supervisorStats, 
+    supervisorCircles.length, 
+    supervisorStudents.length, 
+    supervisorTeachers.length
+  ]);
+
+  // إعادة حساب الإحصائيات عند تحديث البيانات
+  useEffect(() => {
+    console.log('🔄 تحديث الإحصائيات بعد تحديث البيانات');
+  }, [supervisorStats, supervisorCircles.length, supervisorStudents.length, supervisorTeachers.length]);
+
+  // معالجة طلب نقل طالب - محدث للعمل مع APIs والحلقات
   const handleStudentTransfer = async () => {
     try {
-      // في التطبيق الحقيقي سيتم إرسال الطلب لقاعدة البيانات
-      console.log('طلب نقل:', {
-        studentId: selectedStudent,
-        targetMosque,
-        reason: transferReason
-      });
+      // بناء بيانات النقل حسب التوثيق
+      const transferData: any = {
+        student_id: parseInt(selectedStudent),
+        transfer_reason: transferReason,
+        notes: `نقل من نوع: ${transferType === 'mosque' ? 'إلى مسجد آخر' : 'بين الحلقات'}`
+      };
+
+      // إضافة المعلومات حسب نوع النقل
+      if (transferType === 'mosque') {
+        transferData.requested_circle_id = parseInt(targetMosque);
+      } else if (transferType === 'circle') {
+        transferData.requested_circle_id = parseInt(targetCircle);
+      }
       
-      // إرسال طلب النقل إلى API هنا
-      // await supervisorService.transferStudent(selectedStudent, targetMosque, transferReason);
+      console.log('طلب نقل:', transferData);
       
-      setTransferDialogOpen(false);
-      setSelectedStudent('');
-      setTransferReason('');
-      setTargetMosque('');
+      // إرسال طلب النقل إلى API
+      const success = await supervisorService.requestStudentTransfer(transferData, user?.token);
       
-      // عرض رسالة نجاح
-      alert('تم إرسال طلب النقل بنجاح');
+      if (success) {
+        alert('تم إرسال طلب النقل بنجاح');
+        setTransferDialogOpen(false);
+        setSelectedStudent('');
+        setTransferReason('');
+        setTargetMosque('');
+        setTargetCircle('');
+        setTransferType('mosque');
+      } else {
+        alert('فشل في إرسال طلب النقل');
+      }
+      
     } catch (error) {
       console.error('خطأ في إرسال طلب النقل:', error);
       alert('فشل في إرسال طلب النقل');
@@ -282,7 +354,55 @@ const SupervisorDashboard: React.FC = () => {
       default:
         return 'default';
     }
-  };  return (
+  };
+
+  // دالة فلترة الطلاب المحسنة
+  const getFilteredStudents = () => {
+    let filtered = supervisorStudents;
+
+    // البحث بالاسم
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(student => 
+        student.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // فلترة بالمسجد
+    if (selectedMosqueFilter) {
+      filtered = filtered.filter(student => 
+        student.circle?.mosque?.id.toString() === selectedMosqueFilter
+      );
+    }
+
+    // فلترة بالحلقة
+    if (selectedCircleFilter) {
+      filtered = filtered.filter(student => 
+        student.circle?.id.toString() === selectedCircleFilter
+      );
+    }
+
+    // فلترة بنطاق الدرجات
+    if (scoreRangeFilter !== 'all') {
+      switch (scoreRangeFilter) {
+        case 'excellent':
+          filtered = filtered.filter(student => (student.total_score || 0) >= 90);
+          break;
+        case 'good':
+          filtered = filtered.filter(student => (student.total_score || 0) >= 70 && (student.total_score || 0) < 90);
+          break;
+        case 'average':
+          filtered = filtered.filter(student => (student.total_score || 0) >= 50 && (student.total_score || 0) < 70);
+          break;
+        case 'needs_improvement':
+          filtered = filtered.filter(student => (student.total_score || 0) < 50);
+          break;
+      }
+    }
+
+    return filtered;
+  };
+
+  return (
     <Box 
       sx={{
         minHeight: '100vh',
@@ -469,7 +589,7 @@ const SupervisorDashboard: React.FC = () => {
                 backgroundColor: theme.palette.primary.main
               }
             }}
-          >
+          >            <Tab label="النظرة الشاملة" />
             <Tab label="نظرة عامة" />
             <Tab label="المساجد والحلقات" />
             <Tab label="تحضير المعلمين" />
@@ -477,12 +597,15 @@ const SupervisorDashboard: React.FC = () => {
             <Tab label="التوصيات الذكية" />
             <Tab label="التقارير" />
           </Tabs>
-        </Paper>
-
-        {/* محتوى التبويبات */}
+        </Paper>        {/* محتوى التبويبات */}
+        
+        {/* تبويبة النظرة الشاملة الجديدة */}
+        <TabPanel value={activeTab} index={0}>
+          <ComprehensiveView />
+        </TabPanel>
         
         {/* تبويبة نظرة عامة */}
-        <TabPanel value={activeTab} index={0}>
+        <TabPanel value={activeTab} index={1}>
           <Grid container spacing={3}>
             {/* بطاقات الإحصائيات */}
             <Grid item xs={12} md={6} lg={3}>
@@ -599,13 +722,12 @@ const SupervisorDashboard: React.FC = () => {
                                 <Typography variant="body2" fontWeight="bold">{mosqueCircles.length}</Typography>
                               </Box>
                             </Stack>
-                            
-                            <Box sx={{ mt: 2 }}>
+                              <Box sx={{ mt: 2 }}>
                               <Button 
                                 variant="outlined" 
                                 size="small" 
                                 fullWidth
-                                onClick={() => navigate(`/students?mosque=${mosqueId}`)}
+                                onClick={() => navigate(`/mosque-details/${mosqueId}`)}
                               >
                                 عرض التفاصيل
                               </Button>
@@ -619,16 +741,14 @@ const SupervisorDashboard: React.FC = () => {
               </Paper>
             </Grid>
           </Grid>
-        </TabPanel>
-
-        {/* تبويبة المساجد والحلقات */}
-        <TabPanel value={activeTab} index={1}>
+        </TabPanel>        {/* تبويبة المساجد والحلقات */}
+        <TabPanel value={activeTab} index={2}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h6" fontWeight="bold">
-                    إدارة الطلاب والحلقات
+                    إدارة الطلاب والحلقات ({getFilteredStudents().length} طالب)
                   </Typography>
                   <Button
                     variant="contained"
@@ -638,6 +758,103 @@ const SupervisorDashboard: React.FC = () => {
                     نقل طالب
                   </Button>
                 </Box>
+
+                {/* أدوات البحث والفلترة */}
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      placeholder="البحث بالاسم أو اسم المعلم..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <Box sx={{ mr: 1, color: 'text.secondary' }}>
+                            🔍
+                          </Box>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} md={2}>
+                    <FormControl fullWidth>
+                      <InputLabel>المسجد</InputLabel>
+                      <Select
+                        value={selectedMosqueFilter}
+                        onChange={(e) => {
+                          setSelectedMosqueFilter(e.target.value);
+                          setSelectedCircleFilter(''); // إعادة تعيين فلتر الحلقة
+                        }}
+                        label="المسجد"
+                      >
+                        <MenuItem value="">الكل</MenuItem>
+                        {Array.from(new Set(supervisorCircles.map(c => c.mosque.id))).map((mosqueId) => {
+                          const mosque = supervisorCircles.find(c => c.mosque.id === mosqueId)?.mosque;
+                          return mosque ? (
+                            <MenuItem key={mosque.id} value={mosque.id.toString()}>
+                              {mosque.name}
+                            </MenuItem>
+                          ) : null;
+                        })}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} md={2}>
+                    <FormControl fullWidth>
+                      <InputLabel>الحلقة</InputLabel>
+                      <Select
+                        value={selectedCircleFilter}
+                        onChange={(e) => setSelectedCircleFilter(e.target.value)}
+                        label="الحلقة"
+                        disabled={!selectedMosqueFilter}
+                      >
+                        <MenuItem value="">الكل</MenuItem>
+                        {supervisorCircles
+                          .filter(c => !selectedMosqueFilter || c.mosque.id.toString() === selectedMosqueFilter)
+                          .map((circle) => (
+                            <MenuItem key={circle.id} value={circle.id.toString()}>
+                              {circle.name}
+                            </MenuItem>
+                          ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} md={2}>
+                    <FormControl fullWidth>
+                      <InputLabel>مستوى الدرجات</InputLabel>
+                      <Select
+                        value={scoreRangeFilter}
+                        onChange={(e) => setScoreRangeFilter(e.target.value)}
+                        label="مستوى الدرجات"
+                      >
+                        <MenuItem value="all">الكل</MenuItem>
+                        <MenuItem value="excellent">ممتاز (90%+)</MenuItem>
+                        <MenuItem value="good">جيد (70-89%)</MenuItem>
+                        <MenuItem value="average">متوسط (50-69%)</MenuItem>
+                        <MenuItem value="needs_improvement">يحتاج تحسين (&lt;50%)</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedMosqueFilter('');
+                        setSelectedCircleFilter('');
+                        setScoreRangeFilter('all');
+                      }}
+                      sx={{ height: '56px' }}
+                    >
+                      إعادة تعيين
+                    </Button>
+                  </Grid>
+                </Grid>
                   <TableContainer>
                   <Table>
                     <TableHead>
@@ -651,7 +868,7 @@ const SupervisorDashboard: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {supervisorStudents.slice(0, 10).map((student) => (
+                      {getFilteredStudents().slice(0, 10).map((student) => (
                         <TableRow key={student.id}>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -664,9 +881,9 @@ const SupervisorDashboard: React.FC = () => {
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                   {student.age} سنة
-                                </Typography>
-                              </Box>
-                            </Box>                          </TableCell>
+                                </Typography>                              </Box>
+                            </Box>
+                          </TableCell>
                           <TableCell>{student.circle && student.circle.mosque ? student.circle.mosque.name : 'غير محدد'}</TableCell>
                           <TableCell>
                             <Typography variant="body2">
@@ -707,20 +924,19 @@ const SupervisorDashboard: React.FC = () => {
             </Grid>
           </Grid>
         </TabPanel>        {/* تبويبة تحضير المعلمين - محدث لاستخدام البيانات من API */}
-        <TabPanel value={activeTab} index={2}>
+        <TabPanel value={activeTab} index={3}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h6" fontWeight="bold">
                     إدارة المعلمين - {supervisorTeachers.length} معلم
-                  </Typography>
-                  <Button
+                  </Typography>                  <Button
                     variant="contained"
                     startIcon={<PersonAddIcon />}
                     onClick={() => setAttendanceDialogOpen(true)}
                   >
-                    تسجيل حضور
+                    تسجيل حضور معلم
                   </Button>
                 </Box>
                 
@@ -806,10 +1022,8 @@ const SupervisorDashboard: React.FC = () => {
               </Paper>
             </Grid>
           </Grid>
-        </TabPanel>
-
-        {/* تبويبة نقل الطلاب */}
-        <TabPanel value={activeTab} index={3}>
+        </TabPanel>        {/* تبويبة نقل الطلاب */}
+        <TabPanel value={activeTab} index={4}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
@@ -848,15 +1062,28 @@ const SupervisorDashboard: React.FC = () => {
                                 size="small"
                               />
                             </TableCell>
-                            <TableCell>{request.requestDate}</TableCell>
-                            <TableCell>
+                            <TableCell>{request.requestDate}</TableCell>                            <TableCell>
                               {request.status === 'pending' && (
                                 <Stack direction="row" spacing={1}>
                                   <Button
                                     size="small"
                                     variant="contained"
                                     color="success"
-                                    onClick={() => console.log('موافقة على النقل')}
+                                    onClick={async () => {
+                                      try {
+                                        const success = await supervisorService.approveTransferRequest(parseInt(request.id), user?.token);
+                                        if (success) {
+                                          alert('تمت الموافقة على النقل بنجاح');
+                                          // إعادة تحميل البيانات
+                                          window.location.reload();
+                                        } else {
+                                          alert('فشل في الموافقة على النقل');
+                                        }
+                                      } catch (error) {
+                                        console.error('خطأ في الموافقة:', error);
+                                        alert('حدث خطأ في الموافقة على النقل');
+                                      }
+                                    }}
                                   >
                                     موافقة
                                   </Button>
@@ -864,7 +1091,24 @@ const SupervisorDashboard: React.FC = () => {
                                     size="small"
                                     variant="outlined"
                                     color="error"
-                                    onClick={() => console.log('رفض النقل')}
+                                    onClick={async () => {
+                                      const reason = prompt('اذكر سبب الرفض:');
+                                      if (reason) {
+                                        try {
+                                          const success = await supervisorService.rejectTransferRequest(parseInt(request.id), reason, user?.token);
+                                          if (success) {
+                                            alert('تم رفض النقل بنجاح');
+                                            // إعادة تحميل البيانات
+                                            window.location.reload();
+                                          } else {
+                                            alert('فشل في رفض النقل');
+                                          }
+                                        } catch (error) {
+                                          console.error('خطأ في الرفض:', error);
+                                          alert('حدث خطأ في رفض النقل');
+                                        }
+                                      }
+                                    }}
                                   >
                                     رفض
                                   </Button>
@@ -880,10 +1124,8 @@ const SupervisorDashboard: React.FC = () => {
               </Paper>
             </Grid>
           </Grid>
-        </TabPanel>
-
-        {/* تبويبة التوصيات الذكية */}
-        <TabPanel value={activeTab} index={4}>
+        </TabPanel>        {/* تبويبة التوصيات الذكية */}
+        <TabPanel value={activeTab} index={5}>
           <Grid container spacing={3}>
             {supervisorAIRecommendations.map((recommendation) => (
               <Grid item xs={12} md={6} key={recommendation.id}>
@@ -963,10 +1205,8 @@ const SupervisorDashboard: React.FC = () => {
               </Grid>
             ))}
           </Grid>
-        </TabPanel>
-
-        {/* تبويبة التقارير */}
-        <TabPanel value={activeTab} index={5}>
+        </TabPanel>        {/* تبويبة التقارير */}
+        <TabPanel value={activeTab} index={6}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
@@ -1028,46 +1268,85 @@ const SupervisorDashboard: React.FC = () => {
           </Grid>
         </TabPanel>
 
-        {/* نافذة نقل الطالب */}
-        <Dialog 
+        {/* نافذة نقل الطالب */}        <Dialog 
           open={transferDialogOpen} 
           onClose={() => setTransferDialogOpen(false)}
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle>نقل طالب إلى مسجد آخر</DialogTitle>
+          <DialogTitle>نقل طالب</DialogTitle>
           <DialogContent>
-            <Box sx={{ pt: 2 }}>              <FormControl fullWidth sx={{ mb: 2 }}>
+            <Box sx={{ pt: 2 }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>اختر الطالب</InputLabel>
                 <Select
                   value={selectedStudent}
                   onChange={(e) => setSelectedStudent(e.target.value)}
                   label="اختر الطالب"
-                >                  {supervisorStudents.map((student) => (
+                >
+                  {supervisorStudents.map((student) => (
                     <MenuItem key={student.id} value={student.id}>
                       {student.name} - {student.circle && student.circle.mosque ? student.circle.mosque.name : 'غير محدد'}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              
+
+              {/* نوع النقل */}
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>المسجد الجديد</InputLabel>
+                <InputLabel>نوع النقل</InputLabel>
                 <Select
-                  value={targetMosque}
-                  onChange={(e) => setTargetMosque(e.target.value)}
-                  label="المسجد الجديد"
+                  value={transferType}
+                  onChange={(e) => {
+                    setTransferType(e.target.value);
+                    setTargetMosque('');
+                    setTargetCircle('');
+                  }}
+                  label="نوع النقل"
                 >
-                  {Array.from(new Set(supervisorCircles.map(c => c.mosque.id))).map((mosqueId) => {
-                    const mosque = supervisorCircles.find(c => c.mosque.id === mosqueId)?.mosque;
-                    return mosque ? (
-                      <MenuItem key={mosque.id} value={mosque.id}>
-                        {mosque.name}
-                      </MenuItem>
-                    ) : null;
-                  })}
+                  <MenuItem value="circle">نقل بين الحلقات (نفس المسجد)</MenuItem>
+                  <MenuItem value="mosque">نقل إلى مسجد آخر</MenuItem>
                 </Select>
               </FormControl>
+              
+              {/* اختيار المسجد (في حالة النقل للمسجد) */}
+              {transferType === 'mosque' && (
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>المسجد الجديد</InputLabel>
+                  <Select
+                    value={targetMosque}
+                    onChange={(e) => setTargetMosque(e.target.value)}
+                    label="المسجد الجديد"
+                  >
+                    {Array.from(new Set(supervisorCircles.map(c => c.mosque.id))).map((mosqueId) => {
+                      const mosque = supervisorCircles.find(c => c.mosque.id === mosqueId)?.mosque;
+                      return mosque ? (
+                        <MenuItem key={mosque.id} value={mosque.id}>
+                          {mosque.name}
+                        </MenuItem>
+                      ) : null;
+                    })}
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* اختيار الحلقة (في حالة النقل بين الحلقات) */}
+              {transferType === 'circle' && (
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>الحلقة الجديدة</InputLabel>
+                  <Select
+                    value={targetCircle}
+                    onChange={(e) => setTargetCircle(e.target.value)}
+                    label="الحلقة الجديدة"
+                  >
+                    {supervisorCircles.map((circle) => (
+                      <MenuItem key={circle.id} value={circle.id}>
+                        {circle.name} - {circle.mosque.name} ({circle.time_period})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
               
               <TextField
                 fullWidth
@@ -1083,11 +1362,15 @@ const SupervisorDashboard: React.FC = () => {
           <DialogActions>
             <Button onClick={() => setTransferDialogOpen(false)}>
               إلغاء
-            </Button>
-            <Button 
+            </Button>            <Button 
               variant="contained" 
               onClick={handleStudentTransfer}
-              disabled={!selectedStudent || !targetMosque || !transferReason}
+              disabled={
+                !selectedStudent || 
+                !transferReason || 
+                (transferType === 'mosque' && !targetMosque) ||
+                (transferType === 'circle' && !targetCircle)
+              }
             >
               إرسال طلب النقل
             </Button>

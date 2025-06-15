@@ -1,0 +1,123 @@
+Attached HTML and CSS Context
+
+<div style="line-height: 1.5; font-size: 1rem; font-family: Menlo, Consolas, monospace;">Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: C:\Users\ALBAR\ذكاء غرب\gharb-platform\src\components\Header.tsx: Identifier 'Menu' has already been declared. (24:2)
+
+<span style="font-weight:normal;opacity:1;color:#transparent;background:#transparent;"> <span style="color:#6D7891;"> 22 |</span>   <span style="color:#FFD080;">MenuItem</span><span style="color:#FFD080;">,</span>
+ <span style="color:#6D7891;"> 23 |</span>   <span style="color:#FFD080;">Chip</span><span style="color:#FFD080;">,</span>
+<span style="color:#E36049;"><span style="font-weight:bold;">&gt;</span></span><span style="color:#6D7891;"> 24 |</span>   <span style="color:#FFD080;">Menu</span><span style="color:#FFD080;">,</span>
+ <span style="color:#6D7891;">    |</span>   <span style="color:#E36049;"><span style="font-weight:bold;">^</span></span>
+ <span style="color:#6D7891;"> 25 |</span>   <span style="color:#FFD080;">MenuItem</span><span style="color:#FFD080;">,</span>
+ <span style="color:#6D7891;"> 26 |</span>   <span style="color:#FFD080;">Chip</span>
+ <span style="color:#6D7891;"> 27 |</span> } <span style="color:#C3C2EF;">from</span> <span style="color:#B3CB74;">'@mui/material'</span><span style="color:#FFD080;">;</span></span>
+    at constructor (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:363:19)
+    at TypeScriptParserMixin.raise (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:6609:19)
+    at TypeScriptScopeHandler.declareName (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:4878:21)
+    at TypeScriptParserMixin.declareNameFromIdentifier (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:7538:16)
+    at TypeScriptParserMixin.checkIdentifier (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:7534:12)
+    at TypeScriptParserMixin.checkLVal (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:7475:12)
+    at TypeScriptParserMixin.finishImportSpecifier (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14184:10)
+    at TypeScriptParserMixin.parseImportSpecifier (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14341:17)
+    at TypeScriptParserMixin.parseImportSpecifier (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:10108:18)
+    at TypeScriptParserMixin.parseNamedImportSpecifiers (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14320:36)
+    at TypeScriptParserMixin.parseImportSpecifiersAndAfter (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14160:37)
+    at TypeScriptParserMixin.parseImport (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14153:17)
+    at TypeScriptParserMixin.parseImport (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:9382:26)
+    at TypeScriptParserMixin.parseStatementContent (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:12795:27)
+    at TypeScriptParserMixin.parseStatementContent (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:9469:18)
+    at TypeScriptParserMixin.parseStatementLike (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:12685:17)
+    at TypeScriptParserMixin.parseModuleItem (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:12662:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:13235:36)
+    at TypeScriptParserMixin.parseBlockBody (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:13228:10)
+    at TypeScriptParserMixin.parseProgram (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:12541:10)
+    at TypeScriptParserMixin.parseTopLevel (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:12531:25)
+    at TypeScriptParserMixin.parse (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14410:10)
+    at TypeScriptParserMixin.parse (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:10086:18)
+    at parse (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\parser\lib\index.js:14444:38)
+    at parser (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\core\lib\parser\index.js:41:34)
+    at parser.next (&lt;anonymous&gt;)
+    at normalizeFile (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+    at normalizeFile.next (&lt;anonymous&gt;)
+    at run (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\core\lib\transformation\index.js:22:50)
+    at run.next (&lt;anonymous&gt;)
+    at transform (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\core\lib\transform.js:22:33)
+    at transform.next (&lt;anonymous&gt;)
+    at step (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:261:32)
+    at C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:273:13
+    at async.call.result.err.err (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:223:11)
+    at C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:189:28
+    at C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\@babel\core\lib\gensync-utils\async.js:67:7
+    at C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:113:33
+    at step (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:287:14)
+    at C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:273:13
+    at async.call.result.err.err (C:\Users\ALBAR\ذكاء غرب\gharb-platform\node_modules\gensync\index.js:223:11)</div>
+
+
+/* Inline style */
+element {
+  line-height: 1.5;
+  font-size: 1rem;
+  font-family: Menlo, Consolas, monospace;
+  line-height: 1.5;
+  font-size: 1rem;
+  font-family: Menlo, Consolas, monospace;
+}
+
+/* Matched Rule from user-agent */
+div {
+  display: block;
+}
+
+/* Matched Rule from user-agent */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 1 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 1 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 2 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 2 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 3 (user-agent) */
+div {
+  display: block;
+}
+
+/* Inherited from ancestor level 3 (user-agent) */
+address, blockquote, center, div, figure, figcaption, footer, form, header, hr, legend, listing, main, p, plaintext, pre, summary, xmp, article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section, search, table, caption, colgroup, col, thead, tbody, tfoot, tr, td, th, dir, dd, dl, dt, menu, ol, ul, li, bdi, output, [dir="ltr" i], [dir="rtl" i], [dir="auto" i] {
+  unicode-bidi: isolate;
+}
+
+/* Inherited from ancestor level 4 (user-agent) */
+body {
+  display: block;
+  margin-top: 8px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  margin-left: 8px;
+}
+
+/* Inherited from ancestor level 5 (user-agent) */
+html {
+  display: block;
+}
+
+/* Inherited from ancestor level 5 (user-agent) */
+:root {
+  view-transition-name: root;
+}

@@ -26,10 +26,9 @@ import {
   Avatar,
   Stack,
   LinearProgress,
-  Collapse,
-  TextField,  InputAdornment,
-  Badge,
-  Popover,
+  Collapse,  TextField,
+  InputAdornment,
+  Badge,  Popover,
   ButtonGroup,
   useTheme,
   useMediaQuery
@@ -100,9 +99,8 @@ const MemorizationSession: React.FC = () => {
   const [showScoreDialog, setShowScoreDialog] = useState(false);
   const [sessionTime, setSessionTime] = useState(0);const [sessionTimer, setSessionTimer] = useState<NodeJS.Timer | null>(null);
   const [notes, setNotes] = useState('');
-  const [showErrorSummary, setShowErrorSummary] = useState(true);
-  const [isPageReady, setIsPageReady] = useState(false);
-    // ✅ إضافة متغيرات الحالة الجديدة للـ API
+  const [showErrorSummary, setShowErrorSummary] = useState(false);
+  const [isPageReady, setIsPageReady] = useState(false);  // ✅ إضافة متغيرات الحالة الجديدة للـ API
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isSendingErrors, setIsSendingErrors] = useState(false);
@@ -156,8 +154,7 @@ const MemorizationSession: React.FC = () => {
     // تعيين الصفحة كجاهزة
     setIsPageReady(true);
   }, [selectedStudent, memorizationMode, navigate]);
-  
-  // إدارة المؤقت للجلسة
+    // إدارة المؤقت للجلسة
   useEffect(() => {
     if (isSessionStarted && !sessionTimer) {
       const timer = setInterval(() => {
@@ -175,6 +172,26 @@ const MemorizationSession: React.FC = () => {
       }
     };
   }, [isSessionStarted, sessionTimer]);
+
+  // منع تحديث الصفحة أثناء الجلسة النشطة
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (isSessionStarted) {
+        const message = 'جلسة التسميع نشطة! إذا أعدت تحميل الصفحة، قد تفقد بيانات الجلسة. هل تريد المتابعة؟';
+        event.preventDefault();
+        event.returnValue = message; // للمتصفحات الحديثة
+        return message; // للمتصفحات القديمة
+      }
+    };
+
+    if (isSessionStarted) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isSessionStarted]);
   // بدء جلسة التسميع
   const handleStartSession = async () => {
     if (!selectedStudent || !currentSurah) return;
@@ -380,20 +397,28 @@ const MemorizationSession: React.FC = () => {
         duration_minutes: durationMinutes // ✅ إرسال مدة الجلسة المحسوبة
       };      console.log('🚀 حفظ النتائج النهائية...', updateData);
       console.log(`📊 تحويل الدرجة: ${finalScore}% -> ${gradeForAPI}/10`);
-      console.log(`⏱️ حساب المدة: ${sessionTime} ثانية -> ${durationMinutes} دقيقة (بدقة عالية)`);
+      console.log(`⏱️ حساب المدة: ${sessionTime} ثانية -> ${durationMinutes} دقيقة (بدقة عالية)`);      const response = await updateRecitationSession(currentSessionId, updateData);
+        console.log('✅ تم حفظ النتائج بنجاح:', response);
       
-      const response = await updateRecitationSession(currentSessionId, updateData);
-      
-      console.log('✅ تم حفظ النتائج بنجاح:', response);
-      
-    } catch (error) {
+      // إغلاق حوار النتائج والعودة للصفحة الرئيسية مع معامل الإشعار
+      setShowScoreDialog(false);
+      setIsSessionActive(false);
+      navigate('/students', { 
+        state: { 
+          showSuccessNotification: true,
+          message: 'تم حفظ نتائج التسميع بنجاح!' 
+        } 
+      });
+        } catch (error) {
       console.error('❌ خطأ في حفظ النتائج:', error);
       setApiError('حدث خطأ في حفظ النتائج. ستتم العودة للصفحة الرئيسية.');
-    } finally {
-      setIsSavingResults(false);
+      
+      // في حالة الخطأ، العودة فوراً
       setShowScoreDialog(false);
       setIsSessionActive(false);
       navigate('/students');
+    } finally {
+      setIsSavingResults(false);
     }
   };
 
@@ -918,22 +943,27 @@ const MemorizationSession: React.FC = () => {
                         : 'none'
                     }}
                   >                    <Box 
-                      className="uthmani-text"
+                      className="uthmani-text text-balanced"
                       sx={{ 
-                        lineHeight: 2.5, 
-                        textAlign: 'right',
                         fontSize: '1.8rem',
+                        lineHeight: 2.8,
                         fontFamily: '"Amiri Quran", "KFGQPC Uthmanic Script HAFS", "Noto Naskh Arabic", serif',
-                        letterSpacing: '0.5px',
-                        wordSpacing: '6px',
                         direction: 'rtl',
-                        color: theme.palette.mode === 'light' ? '#2c3e50' : '#b8c6db'
+                        color: theme.palette.mode === 'light' ? '#2c3e50' : '#b8c6db',
+                        textAlign: 'justify',
+                        textJustify: 'inter-word',
+                        textAlignLast: 'justify',
+                        wordSpacing: '0.25em',
+                        letterSpacing: '0.01em',
+                        '& *': {
+                          color: 'inherit !important'
+                        }
                       }}
-                    >
-                      {currentAyahs.map((ayah, ayahIndex) => (
+                    >{currentAyahs.map((ayah, ayahIndex) => (
                         <Box key={ayah.number} component="span" sx={{ display: 'inline' }}>
                           {/* كلمات الآية */}
-                          {ayah.words.map((wordObj, wordIndex) => (                            <Tooltip 
+                          {ayah.words.map((wordObj, wordIndex) => (
+                            <Tooltip 
                               key={`${ayah.number}-${wordIndex}`} 
                               title={isSessionStarted ? `انقر لتحديد خطأ - ${wordObj.transliteration || ''}` : wordObj.transliteration || ""}
                               arrow
@@ -945,6 +975,9 @@ const MemorizationSession: React.FC = () => {
                                 className="uthmani-word"
                                 sx={{ 
                                   color: getWordColor(wordObj.text, wordIndex, ayah.number),
+                                  '& *': {
+                                    color: 'inherit !important'
+                                  },
                                   cursor: isSessionStarted ? 'pointer' : 'default',
                                   display: 'inline-block',
                                   margin: '1px 2px',
@@ -963,7 +996,7 @@ const MemorizationSession: React.FC = () => {
                               </Box>
                             </Tooltip>
                           ))}
-                            {/* رقم الآية - دائري مع تصميم جميل */}
+                          {/* رقم الآية - دائري مع تصميم جميل */}
                           <Box
                             component="span"
                             sx={{
@@ -1388,8 +1421,7 @@ const MemorizationSession: React.FC = () => {
             }}
           >
             {isSavingResults ? "جاري الحفظ..." : "حفظ النتائج والعودة"}
-          </Button>
-        </DialogActions>
+          </Button>        </DialogActions>
       </Dialog>
     </Box>
   );

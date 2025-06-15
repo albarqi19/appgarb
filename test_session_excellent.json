@@ -1,0 +1,13 @@
+﻿{
+    "student_id": 1,
+    "teacher_id": 1,
+    "quran_circle_id": 1,
+    "start_surah_number": 2,
+    "start_verse": 1,
+    "end_surah_number": 2,
+    "end_verse": 10,
+    "recitation_type": "حفظ",
+    "grade": 9.0,
+    "evaluation": "ممتاز",
+    "teacher_notes": "اختبار API ممتاز"
+}

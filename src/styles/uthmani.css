@@ -1,4 +1,4 @@
-/* خطوط القرآن الكريم بالرسم العثماني */
+/* خطوط القرآن الكريم بالرسم العثماني - نسخة نظيفة */
 
 /* تحميل خط عثماني من Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap');
@@ -13,52 +13,54 @@
   font-style: normal;
 }
 
-/* تنسيقات للنص العثماني */
+/* ==========================================================================
+   تنسيقات النص العثماني الأساسية
+   ========================================================================== */
+
 .uthmani-text {
   font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Noto Naskh Arabic', Arial, sans-serif !important;
-  font-size: 32px !important;
-  line-height: 2.5 !important;
-  text-align: right !important;
+  font-size: 28px !important;
+  line-height: 3.2 !important;  text-align: justify !important;
   direction: rtl !important;
   font-weight: 400 !important;
-  letter-spacing: 0.5px !important;
-  word-spacing: 8px !important;
+  letter-spacing: 1px !important;
+  word-spacing: 12px !important;
+  text-justify: inter-word !important;
+  text-align-last: justify !important;
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
   text-rendering: optimizeLegibility !important;
-}
-
-/* ألوان النص حسب الوضع */
-[data-theme='light'] .uthmani-text {
+  
+  /* تحسين توزيع النص */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  
+  /* اللون الأساسي - أسود في الوضع الفاتح */
   color: #2c3e50 !important;
 }
 
-[data-theme='dark'] .uthmani-text {
-  color: #b8c6db !important;
+/* تطبيق نفس اللون على جميع العناصر الفرعية (التشكيل) */
+.uthmani-text *,
+.uthmani-text span,
+.uthmani-text::before,
+.uthmani-text::after {
+  color: #2c3e50 !important;
+  -webkit-text-fill-color: #2c3e50 !important;
+  -webkit-text-stroke-color: #2c3e50 !important;
+  fill: #2c3e50 !important;
 }
 
-.uthmani-text-large {
-  font-size: 32px;
-  line-height: 2.6;
-}
+/* ==========================================================================
+   تنسيقات الكلمات العثمانية
+   ========================================================================== */
 
-.uthmani-text-small {
-  font-size: 24px;
-  line-height: 2.2;
-}
-
-.uthmani-text-extra-small {
-  font-size: 20px;
-  line-height: 2;
-}
-
-/* تنسيقات خاصة بالكلمات */
 .uthmani-word {
   font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Noto Naskh Arabic', Arial, sans-serif !important;
   display: inline-block;
-  margin: 1px 2px;
-  padding: 4px 6px;
-  border-radius: 6px;
+  margin: 2px 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -66,16 +68,45 @@
   text-decoration: none;
   background: transparent;
   border: 1px solid transparent;
+  
+  /* تحسين التباعد والمحاذاة */
+  vertical-align: baseline;
+  line-height: inherit;
+  
+  /* الكلمة ترث اللون من النص الأساسي */
+  color: inherit !important;
 }
 
-/* ألوان الكلمات حسب الوضع */
-[data-theme='light'] .uthmani-word {
-  color: #2c3e50;
+/* تطبيق نفس اللون على جميع عناصر الكلمة (التشكيل) */
+.uthmani-word *,
+.uthmani-word span,
+.uthmani-word::before,
+.uthmani-word::after {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  -webkit-text-stroke-color: inherit !important;
+  fill: inherit !important;
 }
 
-[data-theme='dark'] .uthmani-word {
-  color: #b8c6db;
+/* ==========================================================================
+   الوضع المظلم
+   ========================================================================== */
+
+[data-theme='dark'] .uthmani-text {
+  color: #b8c6db !important;
 }
+
+[data-theme='dark'] .uthmani-text *,
+[data-theme='dark'] .uthmani-text span {
+  color: #b8c6db !important;
+  -webkit-text-fill-color: #b8c6db !important;
+  -webkit-text-stroke-color: #b8c6db !important;
+  fill: #b8c6db !important;
+}
+
+/* ==========================================================================
+   تأثيرات التفاعل
+   ========================================================================== */
 
 .uthmani-word:hover {
   background-color: rgba(30, 111, 142, 0.08) !important;
@@ -89,7 +120,60 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* تنسيقات رقم الآية */
+[data-theme='dark'] .uthmani-word:hover {
+  background-color: rgba(75, 159, 190, 0.15) !important;
+  border-color: rgba(75, 159, 190, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   ألوان الأخطاء (عند الحاجة)
+   ========================================================================== */
+
+.uthmani-word.error-word,
+.uthmani-word.error-word * {
+  color: #d32f2f !important;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.uthmani-word.warning-word,
+.uthmani-word.warning-word * {
+  color: #f57c00 !important;
+  background-color: rgba(255, 152, 0, 0.1);
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.uthmani-word.info-word,
+.uthmani-word.info-word * {
+  color: #1976d2 !important;
+  background-color: rgba(33, 150, 243, 0.1);
+  border-color: rgba(33, 150, 243, 0.3);
+}
+
+/* ألوان الأخطاء في الوضع المظلم */
+[data-theme='dark'] .uthmani-word.error-word,
+[data-theme='dark'] .uthmani-word.error-word * {
+  color: #ff6b6b !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .uthmani-word.warning-word,
+[data-theme='dark'] .uthmani-word.warning-word * {
+  color: #ffd93d !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .uthmani-word.info-word,
+[data-theme='dark'] .uthmani-word.info-word * {
+  color: #74c0fc !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   تنسيقات رقم الآية
+   ========================================================================== */
+
 .ayah-number {
   display: inline-flex;
   align-items: center;
@@ -108,7 +192,10 @@
   vertical-align: middle;
 }
 
-/* تحسينات للجوال */
+/* ==========================================================================
+   تحسينات للجوال
+   ========================================================================== */
+
 @media (max-width: 768px) {
   .uthmani-text {
     font-size: 24px;
@@ -149,96 +236,21 @@
   }
 }
 
-/* تنسيقات خاصة بالأخطاء */
-.error-word {
-  background-color: rgba(244, 67, 54, 0.1);
-  border-color: rgba(244, 67, 54, 0.3);
-  color: #d32f2f;
-}
-
-.warning-word {
-  background-color: rgba(255, 152, 0, 0.1);
-  border-color: rgba(255, 152, 0, 0.3);
-  color: #f57c00;
-}
-
-.info-word {
-  background-color: rgba(33, 150, 243, 0.1);
-  border-color: rgba(33, 150, 243, 0.3);
-  color: #1976d2;
-}
-
-/* تنسيقات خاصة للتشكيل - التأكد من أن التشكيل يحافظ على لون النص الأساسي */
-.uthmani-word {
-  /* نضمن أن التشكيل يرث لون النص */
-  color: inherit;
-}
-
-/* عند وجود خطأ، التشكيل أيضاً يأخذ نفس لون الخطأ */
-.uthmani-word.error-word {
-  color: #d32f2f;
-}
-
-.uthmani-word.warning-word {
-  color: #f57c00;
-}
-
-.uthmani-word.info-word {
-  color: #1976d2;
-}
-
-/* تأكيد أن كل أجزاء النص (بما في ذلك التشكيل) تأخذ نفس اللون */
-.uthmani-word,
-.uthmani-word * {
-  color: inherit !important;
-}
-
-/* في حالة الأخطاء، نطبق اللون على جميع عناصر الكلمة */
-.uthmani-word.error-word,
-.uthmani-word.error-word * {
-  color: #d32f2f !important;
-}
-
-.uthmani-word.warning-word,
-.uthmani-word.warning-word * {
-  color: #f57c00 !important;
-}
-
-.uthmani-word.info-word,
-.uthmani-word.info-word * {
-  color: #1976d2 !important;
-}
-
-/* تأثيرات خاصة */
-.uthmani-highlight {
-  background-color: rgba(255, 235, 59, 0.3);
-  border-radius: 4px;
-  padding: 2px 4px;
-}
-
-/* تحسينات للطباعة */
-@media print {
-  .uthmani-text {
-    color: black !important;
-    font-size: 18px;
-    line-height: 1.8;
-    text-shadow: none;
-  }
-  
-  .uthmani-word {
-    background-color: transparent !important;
-    border: none !important;
-    transform: none !important;
-    box-shadow: none !important;
-    color: black !important;
-  }
-}
+/* ==========================================================================
+   تحسينات إضافية
+   ========================================================================== */
 
 /* تنسيقات للاختيار */
 .uthmani-text::selection,
 .uthmani-word::selection {
   background: rgba(30, 111, 142, 0.3);
   color: #1a1a1a;
+}
+
+[data-theme='dark'] .uthmani-text::selection,
+[data-theme='dark'] .uthmani-word::selection {
+  background: rgba(75, 159, 190, 0.4);
+  color: #ffffff;
 }
 
 /* تحسين الوضوح */
@@ -248,39 +260,178 @@
   font-variant-ligatures: common-ligatures;
 }
 
-/* تحسينات خاصة للوضع الداكن */
-[data-theme='dark'] .uthmani-text {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+/* تحسين الطباعة */
+@media print {
+  .uthmani-text,
+  .uthmani-word {
+    color: black !important;
+    font-size: 18px;
+    line-height: 1.8;
+    text-shadow: none;
+    background: none !important;
+    border: none !important;
+  }
 }
 
-[data-theme='dark'] .uthmani-word:hover {
-  background-color: rgba(75, 159, 190, 0.15) !important;
-  border-color: rgba(75, 159, 190, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+/* ==========================================================================
+   تحسينات خاصة لتوزيع الآيات وضبط الصفوف
+   ========================================================================== */
+
+/* تنسيق خاص لكل آية لضبط التوزيع */
+.ayah-container {
+  display: block;
+  margin-bottom: 1em;
+  padding: 0.5em 0;
+  text-align: justify;
+  line-height: 3.2;
 }
 
-/* تحسين قراءة الأخطاء في الوضع الداكن */
-[data-theme='dark'] .uthmani-word.error-word,
-[data-theme='dark'] .uthmani-word.error-word * {
-  color: #ff6b6b !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+/* تحسين توزيع الكلمات في السطر */
+.ayah-text {
+  display: inline;
+  text-align: justify;
+  text-justify: inter-word;
+  word-spacing: 12px;
+  letter-spacing: 1px;
 }
 
-[data-theme='dark'] .uthmani-word.warning-word,
-[data-theme='dark'] .uthmani-word.warning-word * {
-  color: #ffd93d !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+/* تنسيق رقم الآية */
+.ayah-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #1976d2;
+  color: #1976d2;
+  background-color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin: 0 8px;
+  vertical-align: middle;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme='dark'] .uthmani-word.info-word,
-[data-theme='dark'] .uthmani-word.info-word * {
-  color: #74c0fc !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+[data-theme='dark'] .ayah-number {
+  border-color: #4a9fbe;
+  color: #4a9fbe;
+  background-color: #112240;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* تحسين الاختيار في الوضع الداكن */
-[data-theme='dark'] .uthmani-text::selection,
-[data-theme='dark'] .uthmani-word::selection {
-  background: rgba(75, 159, 190, 0.4);
-  color: #ffffff;
+/* تحسين التباعد بين الآيات */
+.verse-spacing {
+  margin: 0 6px;
+}
+
+/* ضبط المسافات للكلمات المختلفة */
+.word-short {
+  margin: 2px 3px;
+}
+
+.word-medium {
+  margin: 2px 4px;
+}
+
+.word-long {
+  margin: 2px 5px;
+}
+
+/* تحسين التوزيع النهائي */
+.text-distribute {
+  text-align: justify !important;
+  text-justify: inter-word !important;
+  text-align-last: justify !important;
+  word-spacing: 0.3em !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* تحسين توزيع النص القرآني - محدث */
+.uthmani-text {
+  text-align: justify !important;
+  text-justify: inter-word !important;
+  text-align-last: right !important;
+  hyphens: none !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+/* تحسين توزيع الكلمات في كل سطر */
+.uthmani-text.text-balanced {
+  text-align: justify !important;
+  text-justify: distribute-all-lines !important;
+  text-align-last: justify !important;
+  word-spacing: 0.2em to 0.8em !important;
+}
+
+/* تنسيق خاص للآيات المتوازنة */
+.ayah-balanced {
+  display: block !important;
+  text-align: justify !important;
+  text-justify: inter-word !important;
+  text-align-last: justify !important;
+  margin-bottom: 1.2em !important;
+  line-height: 2.8 !important;
+  word-spacing: 0.25em !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* ضبط المسافات بين الكلمات بشكل ديناميكي */
+.uthmani-word {
+  margin: 2px 4px !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+}
+
+/* تحسين للمتصفحات الحديثة */
+@supports (text-align-last: justify) {
+  .text-distribute,
+  .uthmani-text {
+    text-align-last: justify !important;
+  }
+}
+
+/* تحسين للمتصفحات التي تدعم CSS Grid */
+@supports (display: grid) {
+  .ayah-container-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    align-items: center !important;
+    text-align: justify !important;
+    word-spacing: 0.3em !important;
+  }
+}
+
+/* تحسين عرض النص على الشاشات الكبيرة */
+@media (min-width: 1024px) {
+  .uthmani-text {
+    font-size: 32px !important;
+    line-height: 3.2 !important;
+    word-spacing: 0.6em !important;
+    letter-spacing: 0.06em !important;
+  }
+}
+
+/* للشاشات الصغيرة */
+@media (max-width: 768px) {
+  .uthmani-text {
+    font-size: 22px !important;
+    line-height: 2.8 !important;
+    word-spacing: 8px !important;
+    letter-spacing: 0.5px !important;
+  }
+  
+  .uthmani-word {
+    margin: 1px 2px;
+    padding: 4px 6px;
+  }
+  
+  .ayah-number {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+    margin: 0 6px;
+  }
 }

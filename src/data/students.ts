@@ -43,6 +43,8 @@ export interface Student {
   totalScore: number;
   phone?: string;
   parentPhone?: string;
+  completedPages?: number; // عدد الصفحات المكتملة
+  lastSession?: string; // تاريخ آخر جلسة
 }
 
 export const students: Student[] = [  {
