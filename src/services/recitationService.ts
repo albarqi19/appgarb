@@ -1,5 +1,5 @@
 // خدمة التسميع والأخطاء - ربط مع API
-import { API_BASE_URL } from './authService';
+import { API_BASE_URL, getApiHeaders } from './authService';
 
 // ===== واجهات البيانات =====
 
@@ -245,13 +245,9 @@ export async function getLastRecitationByType(
     const url = `${API_BASE_URL}/students/${studentId}/last-recitation?recitation_type=${encodedType}`;
     
     console.log(`🌐 URL المُستخدم: ${url}`);
-    
-    const response = await fetch(url, {
+      const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: getApiHeaders(),
     });
 
     console.log(`📡 رد الخادم - الحالة: ${response.status}, نوع المحتوى: ${response.headers.get('content-type')}`);
