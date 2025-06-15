@@ -328,62 +328,25 @@ const getTodayDate = (): string => {
   return saudiTime.toISOString().split('T')[0];
 };
 
-const normalizeDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  
-  // إذا كان التاريخ يحتوي على وقت وأوفست منطقة زمنية
-  if (dateStr.includes('T')) {
-    // تحويل التاريخ للمنطقة الزمنية المحلية ثم استخراج التاريخ فقط
-    const localDate = new Date(dateStr);
-    
-    // تحويل للمنطقة الزمنية السعودية (UTC+3)
-    const saudiOffset = 3 * 60; // 3 ساعات بالدقائق
-    const saudiTime = new Date(localDate.getTime() + (saudiOffset * 60 * 1000));
-    
-    return saudiTime.toISOString().split('T')[0];
-  }
-  
-  return dateStr.split('T')[0]; // إزالة الوقت والمنطقة الزمنية
-};
-
-const isDateToday = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const normalizedDate = normalizeDate(dateStr);
-  const today = getTodayDate();
-  
-  console.log(`🕒 مقارنة التواريخ: ${dateStr} -> ${normalizedDate} vs ${today}`);
-  
-  return normalizedDate === today;
-};
-
-// جلب حضور اليوم للطلاب مع التحقق الصارم من التاريخ وإدارة التخزين المحلي
+// جلب حضور اليوم للطلاب باستخدام API الجديد المحسن
 export const getTodayAttendance = async (teacherId?: string, mosqueId?: string): Promise<{[studentName: string]: AttendanceStatus}> => {
   try {
-    const today = getTodayDate();
-    console.log('🔍 جلب حضور اليوم:', today, 'للمعلم:', teacherId, 'في المسجد:', mosqueId);
-      // تنظيف البيانات القديمة أولاً
+    console.log('🔍 جلب حضور اليوم للمعلم:', teacherId, 'في المسجد:', mosqueId);
+    
+    // تنظيف البيانات القديمة أولاً
     clearOldAttendanceCache();
     
-    // محاولة جلب البيانات من التخزين المحلي إذا كانت لليوم الحالي
-    // تم تعطيل التخزين المحلي مؤقتاً لضمان جلب البيانات المحدثة
-    // const cachedData = getCachedAttendanceData();
-    // if (cachedData && Object.keys(cachedData).length > 0) {
-    //   console.log('📱 استخدام البيانات المحفوظة محلياً');
-    //   return cachedData;
-    // }
-
-    // بناء URL مع فلترة حسب المعلم والمسجد
-    const params = new URLSearchParams();
-    params.append('date', today);
-    if (teacherId) {
-      params.append('teacher_id', teacherId);
-      console.log('🔒 تطبيق فلترة حسب المعلم:', teacherId);
-    }
-    if (mosqueId) {
-      params.append('mosque_id', mosqueId);    console.log('🔒 تطبيق فلترة حسب المسجد:', mosqueId);
+    // التحقق من وجود المعاملات المطلوبة
+    if (!mosqueId || !teacherId) {
+      console.warn('⚠️ معرف المسجد أو المعلم مفقود');
+      return {};
     }
 
-    const response = await fetch(`${API_BASE_URL}/attendance/records?${params}`, {
+    // استخدام API الجديد المُفلتر مسبقاً من الخادم
+    console.log('🚀 استخدام API الحضور الجديد المُفلتر مسبقاً...');
+    const apiUrl = `${API_BASE_URL}/mosques/${mosqueId}/attendance-today?teacher_id=${teacherId}`;
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: getApiHeaders(),
     });
@@ -392,94 +355,32 @@ export const getTodayAttendance = async (teacherId?: string, mosqueId?: string):
       console.warn('❌ فشل في جلب بيانات الحضور:', response.status);
       return {};
     }
-    
+
     const data = await response.json();
-    console.log('📥 بيانات الحضور المستلمة:', data);
+    console.log('📥 بيانات الحضور من API الجديد:', data);
     
-    // تحويل البيانات لتنسيق مناسب
+    // التحقق من تنسيق الاستجابة
+    if (!data.success || !data.data || !data.data.attendance) {
+      console.warn('⚠️ تنسيق الاستجابة غير صحيح');
+      return {};
+    }
+
     const attendanceMap: {[studentName: string]: AttendanceStatus} = {};
     
-    // استخراج السجلات من تنسيقات مختلفة
-    let records = null;
-    
-    if (data.attendance_records && Array.isArray(data.attendance_records)) {
-      records = data.attendance_records;
-    } else if (data.البيانات && Array.isArray(data.البيانات)) {
-      records = data.البيانات;
-    } else if (data.data && data.data.data && Array.isArray(data.data.data)) {
-      // Laravel pagination response format
-      records = data.data.data;
-    } else if (data.data && Array.isArray(data.data)) {
-      records = data.data;
-    } else if (Array.isArray(data)) {
-      records = data;
-    } else if (data && typeof data === 'object') {
-      // إذا كانت البيانات object، ابحث عن arrays بداخله
-      const possibleArrays = Object.values(data).filter(value => Array.isArray(value));
-      if (possibleArrays.length > 0) {
-        records = possibleArrays[0];
+    // تحويل البيانات النظيفة من الخادم (بدون حاجة للفلترة)
+    Object.entries(data.data.attendance).forEach(([studentName, status]) => {
+      // تحويل "غير مسجل" إلى الحالة الافتراضية
+      if (status === 'غير مسجل') {
+        attendanceMap[studentName] = 'حاضر'; // افتراضي
+      } else {
+        attendanceMap[studentName] = convertStatusToArabic(status as string);
       }
-    }
+    });
     
-    console.log('📋 السجلات المستخرجة:', records?.length || 0, 'سجل');
-
-    if (records && Array.isArray(records)) {
-      let validRecordsCount = 0;
-      let ignoredRecordsCount = 0;
-      
-      records.forEach((record: any) => {
-        if (!record || typeof record !== 'object') {
-          console.warn('⚠️ سجل غير صالح:', record);
-          return;
-        }
-        
-        // التحقق من التاريخ أولاً
-        const recordDate = record.date || record.تاريخ || record.attendance_date;
-        
-        if (!recordDate) {
-          console.warn('⚠️ سجل بدون تاريخ، سيتم تجاهله:', record);
-          ignoredRecordsCount++;
-          return;
-        }
-        
-        // التحقق الصارم من أن السجل لليوم الحالي فقط
-        if (!isDateToday(recordDate)) {
-          console.log(`🗓️ تجاهل سجل لتاريخ قديم: ${normalizeDate(recordDate)} (المطلوب: ${today})`);
-          ignoredRecordsCount++;
-          return;
-        }
-        
-        // استخراج اسم الطالب
-        let studentName = record.student_name || record.name || record.اسم_الطالب;
-        
-        // إذا لم نجد الاسم مباشرة، ابحث في record.student
-        if (!studentName && record.student && typeof record.student === 'object') {
-          studentName = record.student.name || record.student.اسم || record.student.student_name;
-        }
-        
-        const status = record.status || record.الحالة || record.attendance_status;
-        
-        if (studentName && status) {
-          attendanceMap[studentName] = convertStatusToArabic(status);
-          validRecordsCount++;
-          console.log(`✅ تم تحديد حضور ${studentName}: ${status} لتاريخ ${normalizeDate(recordDate)}`);
-        } else {
-          console.warn('⚠️ لم يتم العثور على اسم الطالب أو الحالة في السجل:', record);
-          ignoredRecordsCount++;
-        }
-      });
-      
-      console.log(`📊 ملخص معالجة السجلات: ${validRecordsCount} صالح، ${ignoredRecordsCount} مُتجاهل`);
-    } else {
-      console.warn('❌ تنسيق البيانات غير مدعوم:', typeof data);
-    }
-      // تسجيل النتيجة النهائية
-    const recordsCount = Object.keys(attendanceMap).length;
-    if (recordsCount === 0) {
-      console.log('⚠️ لا توجد سجلات حضور صالحة لليوم الحالي');
-    } else {
-      console.log(`✅ تم العثور على ${recordsCount} سجل حضور صالح لليوم الحالي`);
-      // حفظ البيانات في التخزين المحلي
+    console.log(`✅ تم جلب حضور ${Object.keys(attendanceMap).length} طالب من API الجديد المُفلتر`);
+    
+    // حفظ البيانات في التخزين المحلي
+    if (Object.keys(attendanceMap).length > 0) {
       cacheAttendanceData(attendanceMap);
     }
     
@@ -491,98 +392,51 @@ export const getTodayAttendance = async (teacherId?: string, mosqueId?: string):
   }
 };
 
-// التحقق من وجود التحضير لليوم الحالي مع التحقق الصارم من التاريخ
+// التحقق من وجود التحضير لليوم الحالي باستخدام API الجديد المُفلتر
 export const hasAttendanceForToday = async (teacherId?: string, mosqueId?: string): Promise<boolean> => {
   try {
     const today = getTodayDate();
     console.log('🔍 فحص وجود التحضير لتاريخ:', today, 'للمعلم:', teacherId, 'في المسجد:', mosqueId);
     
-    // بناء URL مع فلترة حسب المعلم والمسجد
-    const params = new URLSearchParams();
-    params.append('date', today);
-    if (teacherId) {
-      params.append('teacher_id', teacherId);
+    // التحقق من وجود المعاملات المطلوبة
+    if (!mosqueId || !teacherId) {
+      console.warn('⚠️ معرف المسجد أو المعلم مفقود للفحص');
+      return false;
     }
-    if (mosqueId) {
-      params.append('mosque_id', mosqueId);
-    }
-      // استدعاء API مباشر للتحقق من وجود سجلات لليوم الحالي فقط
-    const response = await fetch(`${API_BASE_URL}/attendance/records?${params}`, {
+
+    // استخدام API الجديد المُفلتر مسبقاً للتحقق من وجود البيانات
+    console.log('🚀 فحص وجود البيانات من API الجديد المُفلتر...');
+    const apiUrl = `${API_BASE_URL}/mosques/${mosqueId}/attendance-today?teacher_id=${teacherId}`;
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: getApiHeaders(),
     });
 
     if (!response.ok) {
-      console.warn('❌ فشل في جلب بيانات الحضور للتحقق:', response.status);
+      console.warn('❌ فشل في جلب بيانات الحضور للفحص:', response.status);
       return false;
     }
 
     const data = await response.json();
-    console.log('📥 بيانات الفحص المستلمة:', data);
+    console.log('📥 بيانات الفحص المستلمة من API الجديد:', data);
     
-    // استخراج السجلات من تنسيقات مختلفة
-    let records = null;
-    if (data.attendance_records && Array.isArray(data.attendance_records)) {
-      records = data.attendance_records;
-    } else if (data.البيانات && Array.isArray(data.البيانات)) {
-      records = data.البيانات;
-    } else if (data.data && data.data.data && Array.isArray(data.data.data)) {
-      records = data.data.data;
-    } else if (data.data && Array.isArray(data.data)) {
-      records = data.data;
-    } else if (Array.isArray(data)) {
-      records = data;
+    // التحقق من وجود بيانات صالحة
+    if (!data.success || !data.data || !data.data.attendance) {
+      console.log('❌ لم يتم العثور على بيانات حضور صالحة');
+      return false;
     }
+
+    // حساب عدد الطلاب الذين لديهم حضور مسجل (ليس "غير مسجل")
+    const attendanceEntries = Object.entries(data.data.attendance);
+    const registeredCount = attendanceEntries.filter(([_, status]) => status !== 'غير مسجل').length;
     
-    // التحقق من وجود سجلات صالحة لليوم الحالي فقط
-    let validRecordsCount = 0;
-    let totalRecords = 0;
-    
-    if (records && Array.isArray(records)) {
-      totalRecords = records.length;
-      
-      validRecordsCount = records.filter(record => {
-        if (!record || typeof record !== 'object') {
-          console.warn('⚠️ سجل غير صالح:', record);
-          return false;
-        }
-        
-        // التحقق من التاريخ
-        const recordDate = record.date || record.تاريخ || record.attendance_date;
-        if (!recordDate) {
-          console.warn('⚠️ سجل بدون تاريخ:', record);
-          return false;
-        }
-        
-        // التحقق الصارم من أن السجل لليوم الحالي
-        const isToday = isDateToday(recordDate);
-        
-        if (isToday) {
-          const studentName = record.student_name || record.name || 'غير محدد';
-          console.log('✅ تم العثور على سجل صالح:', {
-            date: recordDate,
-            normalized: normalizeDate(recordDate),
-            today: today,
-            student: studentName
-          });
-        } else {
-          console.log('🗓️ سجل لتاريخ قديم:', {
-            date: recordDate,
-            normalized: normalizeDate(recordDate),
-            today: today
-          });
-        }
-        
-        return isToday;
-      }).length;
-    }
-    
-    const hasRecords = validRecordsCount > 0;
+    const hasRecords = registeredCount > 0;
     
     console.log('📊 نتيجة فحص التحضير:', {
       today,
-      totalRecords,
-      validRecordsForToday: validRecordsCount,
+      totalStudents: attendanceEntries.length,
+      registeredStudents: registeredCount,
       hasRecords,
       conclusion: hasRecords ? '✅ يوجد تحضير لليوم' : '❌ لا يوجد تحضير لليوم'
     });
@@ -595,62 +449,22 @@ export const hasAttendanceForToday = async (teacherId?: string, mosqueId?: strin
   }
 };
 
-// جلب حضور طالب معين لليوم مع التحقق الصارم من التاريخ
+// جلب حضور طالب معين لليوم باستخدام بيانات الحضور المُفلترة مسبقاً
 export const getStudentTodayAttendance = async (studentName: string, teacherId?: string, mosqueId?: string): Promise<AttendanceStatus | null> => {
   try {
-    const today = getTodayDate();
-    console.log(`🔍 البحث عن حضور الطالب ${studentName} لتاريخ ${today}، المعلم: ${teacherId}، المسجد: ${mosqueId}`);
+    console.log(`🔍 البحث عن حضور الطالب ${studentName} للمعلم: ${teacherId}، المسجد: ${mosqueId}`);
     
-    // بناء URL مع فلترة حسب المعلم والمسجد
-    const params = new URLSearchParams();
-    params.append('date', today);
-    params.append('student_name', studentName);
-    if (teacherId) {
-      params.append('teacher_id', teacherId);
-    }
-    if (mosqueId) {
-      params.append('mosque_id', mosqueId);
-    }
-      const response = await fetch(`${API_BASE_URL}/attendance/records?${params}`, {
-      method: 'GET',
-      headers: getApiHeaders(),
-    });
-
-    if (!response.ok) {
-      console.warn(`❌ فشل في جلب حضور الطالب ${studentName}:`, response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    console.log(`📥 بيانات حضور الطالب ${studentName}:`, data);
+    // استخدام دالة جلب الحضور المُفلترة الجديدة
+    const todayAttendance = await getTodayAttendance(teacherId, mosqueId);
     
-    // استخراج السجلات
-    const records = data.البيانات || data.data || data.attendance_records || [];
-    
-    if (!Array.isArray(records)) {
-      console.warn('❌ تنسيق البيانات غير صالح:', typeof records);
-      return null;
-    }
-    
-    // البحث عن سجل صالح لليوم الحالي
-    const todayRecord = records.find(record => {
-      if (!record || typeof record !== 'object') return false;
-      
-      // التحقق من التاريخ
-      const recordDate = record.date || record.تاريخ || record.attendance_date;
-      if (!recordDate) return false;
-      
-      // التأكد من أن السجل لليوم الحالي
-      return isDateToday(recordDate);
-    });
-    
-    if (todayRecord) {
-      const status = convertStatusToArabic(todayRecord.status || todayRecord.الحالة);
+    // البحث عن الطالب في البيانات المُفلترة
+    if (todayAttendance[studentName]) {
+      const status = todayAttendance[studentName];
       console.log(`✅ تم العثور على حضور الطالب ${studentName}: ${status}`);
       return status;
     }
     
-    console.log(`❌ لم يتم العثور على حضور الطالب ${studentName} لليوم الحالي`);
+    console.log(`❌ لم يتم العثور على حضور الطالب ${studentName} في البيانات المُفلترة`);
     return null;
     
   } catch (error) {
@@ -732,28 +546,25 @@ export const getCachedAttendanceData = (): {[studentName: string]: AttendanceSta
   }
 };
 
-// فرض تحديث بيانات الحضور (تجاهل التخزين المحلي)
+// فرض تحديث بيانات الحضور باستخدام API الجديد المُفلتر (تجاهل التخزين المحلي)
 export const forceRefreshAttendance = async (teacherId?: string, mosqueId?: string): Promise<{[studentName: string]: AttendanceStatus}> => {
   try {
-    const today = getTodayDate();
-    console.log('🔄 فرض تحديث بيانات الحضور لتاريخ:', today, 'للمعلم:', teacherId, 'في المسجد:', mosqueId);
+    console.log('🔄 فرض تحديث بيانات الحضور للمعلم:', teacherId, 'في المسجد:', mosqueId);
     
     // تنظيف التخزين المحلي أولاً
     clearOldAttendanceCache();
     
-    // بناء URL مع فلترة حسب المعلم والمسجد
-    const params = new URLSearchParams();
-    params.append('date', today);
-    params.append('_t', Date.now().toString()); // منع التخزين المؤقت
-    if (teacherId) {
-      params.append('teacher_id', teacherId);
-      console.log('🔒 تطبيق فلترة حسب المعلم:', teacherId);
+    // التحقق من وجود المعاملات المطلوبة
+    if (!mosqueId || !teacherId) {
+      console.warn('⚠️ معرف المسجد أو المعلم مفقود');
+      return {};
     }
-    if (mosqueId) {
-      params.append('mosque_id', mosqueId);
-      console.log('🔒 تطبيق فلترة حسب المسجد:', mosqueId);
-    }
-      const response = await fetch(`${API_BASE_URL}/attendance/records?${params}`, {
+
+    // استخدام API الجديد المُفلتر مسبقاً مع منع التخزين المؤقت
+    console.log('🚀 فرض تحديث من API الجديد المُفلتر...');
+    const apiUrl = `${API_BASE_URL}/mosques/${mosqueId}/attendance-today?teacher_id=${teacherId}&_t=${Date.now()}`;
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         ...getApiHeaders(),
@@ -768,55 +579,27 @@ export const forceRefreshAttendance = async (teacherId?: string, mosqueId?: stri
     }
     
     const data = await response.json();
-    console.log('📥 بيانات الحضور المحدثة:', data);
+    console.log('📥 بيانات الحضور المحدثة من API الجديد:', data);
     
-    // معالجة البيانات بنفس طريقة getTodayAttendance
-    const attendanceMap: {[studentName: string]: AttendanceStatus} = {};
-    
-    // استخراج السجلات من تنسيقات مختلفة
-    let records = null;
-    
-    if (data.attendance_records && Array.isArray(data.attendance_records)) {
-      records = data.attendance_records;
-    } else if (data.البيانات && Array.isArray(data.البيانات)) {
-      records = data.البيانات;
-    } else if (data.data && data.data.data && Array.isArray(data.data.data)) {
-      records = data.data.data;
-    } else if (data.data && Array.isArray(data.data)) {
-      records = data.data;
-    } else if (Array.isArray(data)) {
-      records = data;
-    } else if (data && typeof data === 'object') {
-      const possibleArrays = Object.values(data).filter(value => Array.isArray(value));
-      if (possibleArrays.length > 0) {
-        records = possibleArrays[0];
-      }
+    // التحقق من تنسيق الاستجابة
+    if (!data.success || !data.data || !data.data.attendance) {
+      console.warn('⚠️ تنسيق الاستجابة غير صحيح');
+      return {};
     }
 
-    if (records && Array.isArray(records)) {
-      let validRecordsCount = 0;
-      
-      records.forEach((record: any) => {
-        if (!record || typeof record !== 'object') return;
-        
-        const recordDate = record.date || record.تاريخ || record.attendance_date;
-        if (!recordDate || !isDateToday(recordDate)) return;
-        
-        let studentName = record.student_name || record.name || record.اسم_الطالب;
-        if (!studentName && record.student && typeof record.student === 'object') {
-          studentName = record.student.name || record.student.اسم || record.student.student_name;
-        }
-        
-        const status = record.status || record.الحالة || record.attendance_status;
-        
-        if (studentName && status) {
-          attendanceMap[studentName] = convertStatusToArabic(status);
-          validRecordsCount++;
-        }
-      });
-      
-      console.log(`🔄 تم تحديث ${validRecordsCount} سجل حضور`);
-    }
+    const attendanceMap: {[studentName: string]: AttendanceStatus} = {};
+    
+    // تحويل البيانات النظيفة من الخادم (بدون حاجة للفلترة)
+    Object.entries(data.data.attendance).forEach(([studentName, status]) => {
+      // تحويل "غير مسجل" إلى الحالة الافتراضية
+      if (status === 'غير مسجل') {
+        attendanceMap[studentName] = 'حاضر'; // افتراضي
+      } else {
+        attendanceMap[studentName] = convertStatusToArabic(status as string);
+      }
+    });
+    
+    console.log(`🔄 تم فرض تحديث حضور ${Object.keys(attendanceMap).length} طالب من API الجديد المُفلتر`);
     
     // حفظ البيانات المحدثة
     if (Object.keys(attendanceMap).length > 0) {

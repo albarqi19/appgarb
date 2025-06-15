@@ -3,7 +3,7 @@ import { User, LoginResponse as UserLoginResponse, UserRole } from '../data/user
 import { Circle } from '../data/circles';
 
 // إعدادات API
-export const API_BASE_URL = 'https://inviting-pleasantly-barnacle.ngrok-free.app/api';
+export const API_BASE_URL = 'http://localhost:8000/api';
 
 // دالة مساعدة للحصول على headers مع دعم ngrok
 export const getApiHeaders = (includeAuth: boolean = false, token?: string): Record<string, string> => {

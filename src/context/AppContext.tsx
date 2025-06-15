@@ -3,6 +3,7 @@ import { PaletteMode } from '@mui/material';
 import { Student } from '../data/students';
 import { Mosque } from '../data/mosques';
 import { User, UserRole } from '../data/users';
+import { PreloadedData, initialPreloadedData, preloadEssentialData } from '../services/preloadService';
 
 interface AppContextProps {
   currentMosque: Mosque | null;
@@ -21,6 +22,10 @@ interface AppContextProps {
   setCurrentRole: (role: UserRole | null) => void;
   isAuthenticated: boolean;
   logout: () => void;
+  // البيانات المحملة مسبقاً
+  preloadedData: PreloadedData;
+  setPreloadedData: (data: Partial<PreloadedData>) => void;
+  updatePreloadedData: (updates: Partial<PreloadedData>) => void;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -49,12 +54,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     return savedUser ? JSON.parse(savedUser).defaultRole : null;
   });
-
   const [themeMode, setThemeMode] = useState<PaletteMode>(() => {
     // استرجاع الوضع المفضل من التخزين المحلي أو استخدام الوضع الداكن كافتراضي
     const savedMode = localStorage.getItem('themeMode');
     return (savedMode === 'dark' || savedMode === 'light') ? savedMode : 'dark';
   });
+
+  // حالة البيانات المحملة مسبقاً
+  const [preloadedData, setPreloadedDataState] = useState<PreloadedData>(initialPreloadedData);
   
   // حفظ الوضع المفضل في التخزين المحلي عند تغييره
   useEffect(() => {
@@ -83,8 +90,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // دالة لتبديل الوضع بين الفاتح والمظلم
   const toggleThemeMode = () => {
     setThemeMode((prevMode) => prevMode === 'light' ? 'dark' : 'light');
-  };
-  // دالة تسجيل الخروج
+  };  // دالة تسجيل الخروج
   const logout = () => {
     setUser(null);
     setCurrentRole(null);
@@ -92,11 +98,67 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSelectedStudent(null);
     setMemorizationMode(null);
     setIsSessionActive(false);
+    // إعادة تعيين البيانات المحملة مسبقاً
+    setPreloadedDataState(initialPreloadedData);
   };
 
+  // دوال إدارة البيانات المحملة مسبقاً
+  const setPreloadedData = (data: Partial<PreloadedData>) => {
+    setPreloadedDataState(prev => ({ ...prev, ...data }));
+  };
+  const updatePreloadedData = (updates: Partial<PreloadedData>) => {
+    setPreloadedDataState(prev => ({ ...prev, ...updates }));
+  };
+  // تشغيل التحميل المسبق السريع عند تسجيل الدخول وتحديد المسجد
+  useEffect(() => {
+    const runPreloading = async () => {
+      if (user && currentMosque && (currentRole === 'teacher' || currentRole === 'supervisor')) {        console.log('⚡ بدء التحميل المسبق السريع للبيانات الأساسية...');
+        
+        // تعيين حالة التحميل للبيانات الأساسية فقط
+        setPreloadedData({
+          loadingStatus: {
+            students: true,
+            attendance: true,
+            recitations: false // لن نحمل التسميعات في البداية
+          }
+        });
+        
+        try {
+          const authToken = localStorage.getItem('authToken');
+          const preloadedResult = await preloadEssentialData(
+            user.id,
+            currentMosque.id,
+            authToken || undefined
+          );          setPreloadedData({
+            ...preloadedResult,
+            loadingStatus: {
+              students: false,
+              attendance: false,
+              recitations: false // التسميعات ستحمل في الخلفية
+            }
+          });
+          
+          console.log('✅ تم التحميل المسبق السريع بنجاح!', preloadedResult);
+            } catch (error) {
+          console.error('❌ خطأ في التحميل المسبق السريع:', error);
+          // إعادة تعيين حالة التحميل في حالة الخطأ
+          setPreloadedData({
+            loadingStatus: {
+              students: false,
+              attendance: false,
+              recitations: false
+            }
+          });
+        }
+      }
+    };
+
+    runPreloading();
+  }, [user, currentMosque, currentRole]); // يعيد التشغيل عند تغيير المستخدم أو المسجد أو الدور
+
   // التحقق من حالة تسجيل الدخول
-  const isAuthenticated = user !== null;
-  return (    <AppContext.Provider 
+  const isAuthenticated = user !== null;  return (
+    <AppContext.Provider 
       value={{
         currentMosque,
         setCurrentMosque,
@@ -113,7 +175,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         currentRole,
         setCurrentRole,
         isAuthenticated,
-        logout
+        logout,
+        // البيانات المحملة مسبقاً
+        preloadedData,
+        setPreloadedData,
+        updatePreloadedData
       }}
     >
       {children}
