@@ -3,7 +3,9 @@ import { User, LoginResponse as UserLoginResponse } from '../data/users';
 import { Circle } from '../data/circles';
 
 // إعدادات API
-export const API_BASE_URL = 'http://localhost:8000/api';
+export const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://inviting-pleasantly-barnacle.ngrok-free.app/api' 
+  : 'http://localhost:8000/api';
 
 // واجهة تسجيل الدخول العامة لجميع أنواع المستخدمين
 export interface LoginRequest {
