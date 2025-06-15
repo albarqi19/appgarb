@@ -167,29 +167,25 @@ const LoginPage: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          <CardContent sx={{ p: 4 }}>
-            {/* الرأس */}
+          <CardContent sx={{ p: 4 }}>            {/* الرأس */}
             <Box sx={{ textAlign: 'center', mb: 4 }}>
-              <Box
+              {/* اللوقو */}              <Box
+                component="img"
+                src="/logo512.png"
+                alt="لوقو منصة غرب"
                 sx={{
-                  width: 60,
-                  height: 60,
+                  width: 80,
+                  height: 80,
                   mx: 'auto',
                   mb: 2,
-                  bgcolor: 'primary.main',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: 'block',
                 }}
-              >
-                <LoginIcon sx={{ fontSize: 30, color: 'white' }} />
-              </Box>
+              />
               <Typography variant="h4" component="h1" fontWeight="600" color="primary" gutterBottom>
-                تسجيل الدخول
+                منصة غرب
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                منصة غرب لتحفيظ القرآن الكريم
+              <Typography variant="body1" color="text.secondary" fontWeight="500">
+                لإدارة حلقات القرآن الكريم
               </Typography>
             </Box>
 
@@ -265,26 +261,51 @@ const LoginPage: React.FC = () => {
                   {isLoading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
                 </Button>
               </Stack>
-            </Box>            {/* معلومات API */}
+            </Box>            {/* معلومات التسجيل */}
             <Paper 
               sx={{ 
                 mt: 4, 
-                p: 2, 
-                bgcolor: 'grey.50',
+                p: 3, 
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
                 border: '1px solid',
-                borderColor: 'grey.200',
+                borderColor: (theme) => theme.palette.mode === 'dark' ? 'grey.700' : 'grey.200',
+                borderRadius: 2,
+                boxShadow: (theme) => theme.palette.mode === 'dark' 
+                  ? '0 2px 8px rgba(0,0,0,0.3)' 
+                  : '0 2px 8px rgba(0,0,0,0.1)',
               }}
             >
-              <Typography variant="body2" color="primary" fontWeight="bold" gutterBottom>
-                تسجيل دخول متعدد الأدوار عبر API:
+              <Typography 
+                variant="body1" 
+                fontWeight="bold" 
+                gutterBottom
+                sx={{ 
+                  color: (theme) => theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+                  mb: 2
+                }}
+              >
+                للحصول على حساب:
               </Typography>
-              <Typography variant="caption" color="text.secondary" component="div">
-                يتم الآن الاتصال بـ API الخلفي لجميع أنواع المستخدمين:<br/>
-                • المعلمون: /auth/teacher/login<br/>
-                • الطلاب: /auth/student/login<br/>
-                • أولياء الأمور: /auth/parent/login<br/>
-                • المشرفون: /auth/supervisor/login<br/>
-                استخدم بيانات الاعتماد الصحيحة حسب نوع المستخدم
+              <Typography 
+                variant="body2" 
+                component="div" 
+                sx={{ 
+                  lineHeight: 1.8,
+                  color: (theme) => theme.palette.mode === 'dark' ? 'grey.300' : 'text.secondary',
+                }}
+              >
+                • للتسجيل كمعلم توجه إلى إدارة الفرع<br/>
+                • للتسجيل كطالب تواصل مع مشرف الحلقة<br/>
+                <Typography 
+                  component="span" 
+                  sx={{ 
+                    color: (theme) => theme.palette.mode === 'dark' ? 'warning.light' : 'warning.dark',
+                    fontWeight: 600,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  • إطلاق تجريبي
+                </Typography>
               </Typography>
             </Paper>
           </CardContent>

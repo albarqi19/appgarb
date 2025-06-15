@@ -12,7 +12,8 @@ import {
   Button,
   Stack,
   useTheme,
-  CircularProgress
+  CircularProgress,
+  Divider
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -273,105 +274,107 @@ const MosqueSelection: React.FC = () => {
               لا يبدو أنك مُعين كمعلم في أي مسجد حتى الآن. 
               تواصل مع إدارة المسجد لتعيينك كمعلم في إحدى الحلقات.
             </Typography>
-          </Stack>
-        </Box>
-      ) : (
-        <Grid container spacing={4}>
-          {finalMosques.map((mosque) => (
-            <Grid item xs={12} sm={6} md={4} key={mosque.id}>
-              <Card 
-                elevation={4} 
-                className="card-hover"
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  borderRadius: 3,
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-              >
-                <Box sx={{ 
-                  position: 'absolute',
-                  width: '200px',
-                  height: '200px',
-                  borderRadius: '50%',
-                  top: -100,
-                  left: -100,
-                  background: 'linear-gradient(45deg, rgba(30, 111, 142, 0.1), rgba(30, 111, 142, 0.05))'
-                }} />
-                  <CardActionArea 
-                  onClick={() => handleMosqueSelection((mosque.id?.toString() || mosque.id)?.toString())}
-                  sx={{ flexGrow: 1, p: 2 }}
+          </Stack>        </Box>
+      ) : (        <>
+          {/* عرض البطاقات للجميع */}
+          <Grid container spacing={4}>
+            {finalMosques.map((mosque) => (
+              <Grid item xs={12} sm={6} md={4} key={mosque.id}>
+                <Card 
+                  elevation={4} 
+                  className="card-hover"
+                  sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    borderRadius: 3,
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
                 >
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center',
-                      mb: 2,
-                      mt: 2,
-                      position: 'relative'
-                    }}
+                  <Box sx={{ 
+                    position: 'absolute',
+                    width: '200px',
+                    height: '200px',
+                    borderRadius: '50%',
+                    top: -100,
+                    left: -100,
+                    background: 'linear-gradient(45deg, rgba(30, 111, 142, 0.1), rgba(30, 111, 142, 0.05))'
+                  }} />
+                    <CardActionArea 
+                    onClick={() => handleMosqueSelection((mosque.id?.toString() || mosque.id)?.toString())}
+                    sx={{ flexGrow: 1, p: 2 }}
                   >
-                    <Avatar 
-                      sx={{ 
-                        bgcolor: 'primary.main', 
-                        width: 90, 
-                        height: 90,
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                        border: '4px solid rgba(255,255,255,0.9)'
-                      }}
-                    >
-                      <MosqueIcon sx={{ fontSize: 50 }} />
-                    </Avatar>
-                  </Box>
-                  <CardContent>                    <Typography variant="h5" component="h2" align="center" fontWeight="bold">
-                      {(mosque.mosque_name && mosque.mosque_name !== 'مسجد بدون اسم') 
-                        ? mosque.mosque_name 
-                        : (mosque.اسم_المسجد && mosque.اسم_المسجد !== 'مسجد بدون اسم') 
-                          ? mosque.اسم_المسجد 
-                          : `مسجد رقم ${mosque.id}`}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
-                      {(mosque.district && mosque.district !== 'الحي غير محدد') 
-                        ? mosque.district 
-                        : (mosque.الحي && mosque.الحي !== 'الحي غير محدد') 
-                          ? mosque.الحي 
-                          : 'الموقع: يُرجى تحديث بيانات المسجد'}
-                    </Typography>                    {(mosque.street || mosque.الشارع) && (mosque.street || mosque.الشارع) !== (mosque.district || mosque.الحي) && (
-                      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
-                        {mosque.street || mosque.الشارع}
-                      </Typography>
-                    )}
-                    
-                    {/* عرض معرف المسجد للمطورين */}
-                    <Typography variant="caption" color="text.disabled" align="center" sx={{ mt: 1, fontSize: '0.75rem' }}>
-                      معرف المسجد: {mosque.id}
-                    </Typography>
-                    
                     <Box 
                       sx={{ 
                         display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        mb: 2,
                         mt: 2,
-                        p: 1,
-                        bgcolor: 'background.default',
-                        borderRadius: 2
+                        position: 'relative'
                       }}
                     >
-                      <PersonIcon color="primary" sx={{ mr: 1 }} />
-                      <Typography variant="body1" fontWeight="medium">
-                        إدارة الطلاب
-                      </Typography>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: 'primary.main', 
+                          width: 90, 
+                          height: 90,
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                          border: '4px solid rgba(255,255,255,0.9)'
+                        }}
+                      >
+                        <MosqueIcon sx={{ fontSize: 50 }} />
+                      </Avatar>
                     </Box>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}        </Grid>
+                    <CardContent>                      <Typography variant="h5" component="h2" align="center" fontWeight="bold">
+                        {(mosque.mosque_name && mosque.mosque_name !== 'مسجد بدون اسم') 
+                          ? mosque.mosque_name 
+                          : (mosque.اسم_المسجد && mosque.اسم_المسجد !== 'مسجد بدون اسم') 
+                            ? mosque.اسم_المسجد 
+                            : `مسجد رقم ${mosque.id}`}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+                        {(mosque.district && mosque.district !== 'الحي غير محدد') 
+                          ? mosque.district 
+                          : (mosque.الحي && mosque.الحي !== 'الحي غير محدد') 
+                            ? mosque.الحي 
+                            : 'الموقع: يُرجى تحديث بيانات المسجد'}
+                      </Typography>                      {(mosque.street || mosque.الشارع) && (mosque.street || mosque.الشارع) !== (mosque.district || mosque.الحي) && (
+                        <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
+                          {mosque.street || mosque.الشارع}
+                        </Typography>
+                      )}
+                      
+                      {/* عرض معرف المسجد للمطورين */}
+                      <Typography variant="caption" color="text.disabled" align="center" sx={{ mt: 1, fontSize: '0.75rem' }}>
+                        معرف المسجد: {mosque.id}
+                      </Typography>
+                      
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          mt: 2,
+                          p: 1,
+                          bgcolor: 'background.default',
+                          borderRadius: 2
+                        }}
+                      >
+                        <PersonIcon color="primary" sx={{ mr: 1 }} />
+                        <Typography variant="body1" fontWeight="medium">
+                          إدارة الطلاب
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}          </Grid>
+        </>
       )}
+
         {/* تنبيه وقت الدوام */}
       <WorkingHoursAlert />
     </Container>

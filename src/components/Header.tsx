@@ -106,11 +106,10 @@ const Header: React.FC = () => {
       default: return 'مستخدم';
     }
   };
-
-  // إخفاء الهيدر في صفحة تسجيل الدخول وصفحة اختيار الدور
-  if (location.pathname === '/login' || location.pathname === '/role-selection') {
+  // إخفاء الهيدر في صفحة تسجيل الدخول وصفحة اختيار الدور والصفحة الرئيسية
+  if (location.pathname === '/login' || location.pathname === '/role-selection' || location.pathname === '/') {
     return null;
-  }  // قائمة العناصر في القائمة الجانبية
+  }// قائمة العناصر في القائمة الجانبية
   const drawerItems = [
     // { text: 'لوحة التحكم', icon: <DashboardIcon />, path: '/dashboard' }, // مخفية مؤقتاً
     { text: 'المدارس القرآنية', icon: <MosqueIcon />, path: '/' },
@@ -131,7 +130,7 @@ const Header: React.FC = () => {
           flexDirection: 'column', 
           alignItems: 'center'
         }}
-      ><Box
+      >        <Box
           sx={{ 
             width: 75, 
             height: 75, 
@@ -142,11 +141,11 @@ const Header: React.FC = () => {
           }}
         >
           <img 
-            src="/لوقو.svg" 
+            src="/logo512.png" 
             alt="شعار منصة غرب" 
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
-        </Box>        <Typography variant="h5" color="text.primary" fontWeight="bold" sx={{ mb: 0.5 }}>
+        </Box><Typography variant="h5" color="text.primary" fontWeight="bold" sx={{ mb: 0.5 }}>
           منصة غرب
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -279,7 +278,7 @@ const Header: React.FC = () => {
                 }}
               >
                 <img 
-                  src="/لوقو.svg" 
+                  src="/logo512.png" 
                   alt="شعار منصة غرب" 
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
@@ -326,22 +325,25 @@ const Header: React.FC = () => {
                     color="error"
                   >
                     <NotificationsIcon color="primary" />
-                  </Badge>
-                </IconButton>
+                  </Badge>                </IconButton>
               </Tooltip>
+
+              {/* زر توصيات الذكاء الاصطناعي - مخفي */}
+              {false && (
                 <Tooltip title="توصيات الذكاء الاصطناعي">
-                <IconButton 
-                  onClick={() => navigate('/dashboard')}
-                  sx={{ 
-                    mx: 0.5,
-                    bgcolor: 'background.default',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-                    '&:hover': { bgcolor: 'background.paper' }
-                  }}
-                >
-                  <LightbulbIcon color="warning" />
-                </IconButton>
-              </Tooltip>
+                  <IconButton 
+                    onClick={() => navigate('/dashboard')}
+                    sx={{ 
+                      mx: 0.5,
+                      bgcolor: 'background.default',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                      '&:hover': { bgcolor: 'background.paper' }
+                    }}
+                  >
+                    <LightbulbIcon color="warning" />
+                  </IconButton>
+                </Tooltip>
+              )}
 
               {/* معلومات المستخدم */}
               {isAuthenticated && user && (

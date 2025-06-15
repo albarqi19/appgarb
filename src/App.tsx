@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { 
   ThemeProvider, 
   CssBaseline, 
@@ -9,6 +9,7 @@ import {
   Typography, 
   GlobalStyles 
 } from '@mui/material';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider, useAppContext } from './context/AppContext';
 import Header from './components/Header';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -25,7 +26,10 @@ import '@fontsource/ibm-plex-sans-arabic/700.css';
 import './App.css';
 import { darkTheme, lightTheme } from './theme/theme';
 
-// تعريف الصفحات بالتحميل الكسول
+// تحميل مباشر للصفحة الرئيسية لتظهر بسرعة
+import HomePage from './pages/HomePage';
+
+// تعريف باقي الصفحات بالتحميل الكسول
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RoleSelectionPage = lazy(() => import('./pages/RoleSelectionPage'));
 const MosqueSelection = lazy(() => import('./pages/MosqueSelection'));
@@ -41,6 +45,7 @@ const SupervisorDashboard = lazy(() => import('./pages/SupervisorDashboard'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const QuranPage = lazy(() => import('./pages/QuranPage'));
 const AttendanceLogPage = lazy(() => import('./pages/AttendanceLogPage'));
+const MosqueDetails = lazy(() => import('./pages/MosqueDetails'));
 const ComingSoon = lazy(() => import('./pages/ComingSoon'));
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
 const { PublicRoute } = require('./components/ProtectedRoute');
@@ -51,9 +56,26 @@ const cacheRtl = createCache({
   stylisPlugins: [prefixer, rtlPlugin],
 });
 
+// إعداد React Query Client مع تحسينات للمشرف
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000, // البيانات صالحة لمدة دقيقتين
+      gcTime: 5 * 60 * 1000, // احتفظ بالبيانات في الذاكرة لـ 5 دقائق
+      refetchOnWindowFocus: false, // لا تجلب البيانات عند العودة للتطبيق
+      retry: 2, // إعادة المحاولة مرتين عند الفشل
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // تأخير متزايد
+    },
+  },
+});
+
 // المكون الرئيسي للتطبيق مع دعم السمة المظلمة
 const AppContent = () => {
   const { themeMode } = useAppContext();
+  const location = useLocation();
+
+  // تحديد ما إذا كنا في الصفحة الرئيسية
+  const isHomePage = location.pathname === '/';
 
   // تنظيف البيانات القديمة عند بدء التطبيق
   useEffect(() => {
@@ -93,27 +115,47 @@ const AppContent = () => {
           }
         }}
       />
-      
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
-        <Box 
-          component="main" 
-          sx={{ 
-            flexGrow: 1,
-            pt: 4,
-            pb: 4,
-            backgroundImage: themeMode === 'light' 
-              ? 'linear-gradient(rgba(245, 249, 252, 0.9), rgba(245, 249, 252, 0.9)), url("/assets/islamic-pattern.svg")'
-              : 'linear-gradient(rgba(10, 25, 47, 0.97), rgba(10, 25, 47, 0.97)), url("/assets/islamic-pattern.svg")',
-            backgroundAttachment: 'fixed',
-            backgroundSize: '500px',
-            position: 'relative',
-          }}        >
-          <Toolbar /> {/* لإضافة مسافة تحت شريط التنقل */}
-          
-          <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-            <Suspense fallback={<LoadingSpinner message="جاري تحميل الصفحة..." />}>
-              <PageTransition>                <Routes>
+        
+        {isHomePage ? (
+          // الصفحة الرئيسية - بدون قيود على كامل الشاشة
+          <Suspense fallback={<LoadingSpinner message="جاري تحميل الصفحة..." />}>
+            <PageTransition>
+              <Routes>
+                <Route 
+                  path="/" 
+                  element={
+                    <PublicRoute>
+                      <HomePage />
+                    </PublicRoute>
+                  } 
+                />
+              </Routes>
+            </PageTransition>
+          </Suspense>
+        ) : (
+          // باقي الصفحات - مع التخطيط العادي
+          <Box 
+            component="main" 
+            sx={{ 
+              flexGrow: 1,
+              pt: 4,
+              pb: 4,
+              backgroundImage: themeMode === 'light' 
+                ? 'linear-gradient(rgba(245, 249, 252, 0.9), rgba(245, 249, 252, 0.9)), url("/assets/islamic-pattern.svg")'
+                : 'linear-gradient(rgba(10, 25, 47, 0.97), rgba(10, 25, 47, 0.97)), url("/assets/islamic-pattern.svg")',
+              backgroundAttachment: 'fixed',
+              backgroundSize: '500px',
+              position: 'relative',
+            }}
+          >
+            <Toolbar /> {/* لإضافة مسافة تحت شريط التنقل */}
+            
+            <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+              <Suspense fallback={<LoadingSpinner message="جاري تحميل الصفحة..." />}>
+                <PageTransition>
+                  <Routes>
                   {/* صفحة تسجيل الدخول - للمستخدمين غير المسجلين */}
                   <Route 
                     path="/login" 
@@ -123,23 +165,12 @@ const AppContent = () => {
                       </PublicRoute>
                     } 
                   />
-                  
-                  {/* صفحة اختيار الدور - للمستخدمين متعددي الأدوار */}
+                    {/* صفحة اختيار الدور - للمستخدمين متعددي الأدوار */}
                   <Route 
                     path="/role-selection" 
                     element={
                       <ProtectedRoute>
                         <RoleSelectionPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  
-                  {/* الصفحة الرئيسية - إعادة توجيه للدخول إذا غير مسجل */}
-                  <Route 
-                    path="/" 
-                    element={
-                      <ProtectedRoute requireAuth={false}>
-                        <Navigate to="/login" />
                       </ProtectedRoute>
                     } 
                   />
@@ -187,8 +218,7 @@ const AppContent = () => {
                       </ProtectedRoute>
                     } 
                   />
-                  
-                  {/* صفحات الطلاب */}
+                    {/* صفحات الطلاب */}
                   <Route 
                     path="/students" 
                     element={
@@ -204,11 +234,22 @@ const AppContent = () => {
                         <StudentsList />
                       </ProtectedRoute>
                     } 
-                  />                  <Route 
+                  />
+                  <Route 
                     path="/students/:studentId" 
                     element={
                       <ProtectedRoute allowedRoles={['teacher', 'supervisor', 'parent']}>
                         <StudentDetails />
+                      </ProtectedRoute>
+                    } 
+                  />
+
+                  {/* صفحة تفاصيل المسجد */}
+                  <Route 
+                    path="/mosque-details/:mosqueId" 
+                    element={
+                      <ProtectedRoute allowedRoles={['supervisor']}>
+                        <MosqueDetails />
                       </ProtectedRoute>
                     } 
                   />
@@ -280,38 +321,42 @@ const AppContent = () => {
                   <Route path="*" element={<Navigate to="/login" />} />
                 </Routes>
               </PageTransition>
-            </Suspense>
-          </Container>
+            </Suspense>          </Container>
         </Box>
-        {/* Footer */}
-        <Box 
-          component="footer" 
-          sx={{ 
-            py: 3, 
-            textAlign: 'center', 
-            borderTop: `1px solid ${themeMode === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)'}`,
-            bgcolor: themeMode === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(10, 25, 47, 0.8)',
-            mt: 'auto' 
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            منصة غرب | منصة متابعة تحفيظ القرآن الكريم
-          </Typography>
-        </Box>
+        )}
+        
+        {/* Footer - إخفاءه في الصفحة الرئيسية */}
+        {!isHomePage && (
+          <Box 
+            component="footer" 
+            sx={{ 
+              py: 3, 
+              textAlign: 'center', 
+              borderTop: `1px solid ${themeMode === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)'}`,
+              bgcolor: themeMode === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(10, 25, 47, 0.8)',
+              mt: 'auto' 
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              منصة غرب | منصة متابعة تحفيظ القرآن الكريم
+            </Typography>
+          </Box>
+        )}
       </Box>
     </ThemeProvider>
   );
 };
 
 // مكون التطبيق الرئيسي
-function App() {
-  return (
+function App() {  return (
     <CacheProvider value={cacheRtl}>
-      <AppProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </AppProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </AppProvider>
+      </QueryClientProvider>
     </CacheProvider>
   );
 }
