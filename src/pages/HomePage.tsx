@@ -4,17 +4,23 @@ import {
   Typography,
   Button,
   useTheme,
-  alpha
+  alpha,
+  Stack
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import LoginIcon from '@mui/icons-material/Login';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-
   const handleLoginClick = () => {
     navigate('/login');
+  };
+
+  const handleRegisterClick = () => {
+    // زر شكلي فقط - لا يفعل شيء
+    console.log('زر التسجيل (شكلي فقط)');
   };
   return (
     <Box
@@ -33,8 +39,7 @@ const HomePage: React.FC = () => {
         backgroundRepeat: 'no-repeat',
         backgroundAttachment: 'fixed',
       }}
-    >
-      {/* طبقة شفافة خفيفة لتحسين وضوح النص */}
+    >      {/* طبقة شفافة خفيفة لتحسين وضوح النص */}
       <Box
         sx={{
           position: 'absolute',
@@ -48,31 +53,6 @@ const HomePage: React.FC = () => {
           zIndex: 1
         }}
       />
-
-      {/* زر تسجيل الدخول العلوي */}
-      <Button
-        variant="contained"
-        startIcon={<LoginIcon />}
-        onClick={handleLoginClick}
-        sx={{
-          position: 'absolute',
-          top: 30,
-          right: 30,
-          zIndex: 3,
-          borderRadius: 3,
-          px: 4,
-          py: 1.5,
-          fontSize: '1.1rem',
-          fontWeight: 'bold',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          '&:hover': {
-            transform: 'translateY(-2px)',
-            boxShadow: '0 6px 25px rgba(0,0,0,0.4)',
-          }
-        }}
-      >
-        تسجيل الدخول
-      </Button>
 
       {/* المحتوى الرئيسي */}
       <Box
@@ -157,9 +137,7 @@ const HomePage: React.FC = () => {
           }}
         >
           لإدارة حلقات القرآن الكريم
-        </Typography>
-
-        {/* نص وصفي إضافي */}
+        </Typography>        {/* نص وصفي إضافي */}
         <Typography
           variant="h6"
           sx={{
@@ -168,13 +146,76 @@ const HomePage: React.FC = () => {
             maxWidth: 600,
             mx: 'auto',
             lineHeight: 1.6,
-            textShadow: '1px 1px 4px rgba(0,0,0,0.6)'
+            textShadow: '1px 1px 4px rgba(0,0,0,0.6)',
+            mb: 4
           }}
         >
           منصة شاملة لإدارة ومتابعة طلاب حلقات تحفيظ القرآن الكريم
           <br />
           مع أدوات متقدمة للمعلمين والمشرفين وأولياء الأمور
         </Typography>
+
+        {/* أزرار تسجيل الدخول والتسجيل */}
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={2} 
+          alignItems="center" 
+          justifyContent="center"
+          sx={{ mt: 3 }}
+        >          <Button
+            variant="outlined"
+            startIcon={<LoginIcon />}
+            onClick={handleLoginClick}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1.2,
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              minWidth: 180, // زيادة العرض لضمان التطابق
+              backgroundColor: 'rgba(30, 111, 142, 0.2)', // زيادة الشفافية قليلاً
+              borderColor: 'rgba(30, 111, 142, 0.7)', // حدود أكثر وضوحاً
+              color: 'white', // نص أبيض للوضوح
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)', // ظل خفيف
+              '&:hover': {
+                backgroundColor: 'rgba(30, 111, 142, 0.3)',
+                borderColor: 'rgba(30, 111, 142, 0.9)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+              }
+            }}
+          >
+            تسجيل الدخول
+          </Button>
+          
+          <Button
+            variant="outlined"
+            startIcon={<PersonAddIcon />}
+            onClick={handleRegisterClick}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1.2,
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              minWidth: 180, // نفس العرض المحدد لزر تسجيل الدخول
+              backgroundColor: 'rgba(255,255,255,0.15)', // زيادة الشفافية قليلاً
+              borderColor: 'rgba(255,255,255,0.6)', // حدود أكثر وضوحاً
+              color: 'white',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)', // ظل خفيف
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.25)',
+                borderColor: 'rgba(255,255,255,0.9)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+              }
+            }}
+          >
+            التسجيل
+          </Button>
+        </Stack>
       </Box>
 
       {/* تذييل بسيط */}
