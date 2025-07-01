@@ -1046,163 +1046,7 @@ const SupervisorDashboard: React.FC = () => {
           </Grid>
         </TabPanel>        {/* تبويبة متابعة نشاط المعلمين */}
         <TabPanel value={activeTab} index={3}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h6" fontWeight="bold">
-                    متابعة نشاط المعلمين اليومي
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    onClick={() => navigate('/teacher-activity-dashboard')}
-                    startIcon={<TimelineIcon />}
-                    sx={{
-                      background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-                      boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #1976D2 30%, #2196F3 90%)',
-                      }
-                    }}
-                  >
-                    صفحة المتابعة التفصيلية
-                  </Button>
-                </Box>
-                
-                <Grid container spacing={3}>
-                  {/* بطاقة تلخيصية للمؤشرات */}
-                  <Grid item xs={12} md={6}>
-                    <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'primary.light', color: 'white' }}>
-                      <Typography variant="h6" fontWeight="bold" gutterBottom>
-                        📊 ملخص نشاط اليوم
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Box textAlign="center">
-                            <Typography variant="h3" fontWeight="bold">
-                              {supervisorTeachers.length}
-                            </Typography>
-                            <Typography variant="body2">
-                              إجمالي المعلمين
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box textAlign="center">
-                            <Typography variant="h3" fontWeight="bold">
-                              {Math.round(supervisorTeachers.length * 0.8)}
-                            </Typography>
-                            <Typography variant="body2">
-                              معلمين نشطين
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Card>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'success.light', color: 'white' }}>
-                      <Typography variant="h6" fontWeight="bold" gutterBottom>
-                        ✅ مؤشرات الأداء
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Box textAlign="center">
-                            <Typography variant="h3" fontWeight="bold">
-                              85%
-                            </Typography>
-                            <Typography variant="body2">
-                              نسبة التحضير
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box textAlign="center">
-                            <Typography variant="h3" fontWeight="bold">
-                              78%
-                            </Typography>
-                            <Typography variant="body2">
-                              نسبة التسميع
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Card>
-                  </Grid>
-
-                  {/* قائمة المعلمين مع أزرار سريعة */}
-                  <Grid item xs={12}>
-                    <Card elevation={0} sx={{ borderRadius: 3 }}>
-                      <CardContent>
-                        <Typography variant="h6" fontWeight="bold" gutterBottom>
-                          قائمة المعلمين السريعة
-                        </Typography>
-                        <Grid container spacing={2}>
-                          {supervisorTeachers.slice(0, 6).map((teacher) => (
-                            <Grid item xs={12} sm={6} md={4} key={teacher.id}>
-                              <Card 
-                                elevation={1} 
-                                sx={{ 
-                                  p: 2, 
-                                  borderRadius: 2,
-                                  transition: 'transform 0.2s',
-                                  '&:hover': {
-                                    transform: 'translateY(-2px)',
-                                    boxShadow: 4
-                                  }
-                                }}
-                              >
-                                <Box display="flex" alignItems="center" mb={1}>
-                                  <Avatar sx={{ bgcolor: 'primary.main', mr: 1, width: 32, height: 32 }}>
-                                    <PersonIcon fontSize="small" />
-                                  </Avatar>
-                                  <Box>
-                                    <Typography variant="subtitle2" fontWeight="bold">
-                                      {teacher.name}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {teacher.circle?.name || 'لا توجد حلقة'}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                
-                                <Box display="flex" gap={1}>
-                                  <Chip 
-                                    size="small" 
-                                    label="نشط" 
-                                    color="success" 
-                                    variant="outlined"
-                                  />
-                                  <Chip 
-                                    size="small" 
-                                    label="85%" 
-                                    color="primary" 
-                                    variant="outlined"
-                                  />
-                                </Box>
-                              </Card>
-                            </Grid>
-                          ))}
-                        </Grid>
-                        
-                        <Box textAlign="center" mt={3}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => navigate('/teacher-activity-dashboard')}
-                            startIcon={<AssessmentIcon />}
-                            size="large"
-                          >
-                            عرض التفاصيل الكاملة لجميع المعلمين
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-          </Grid>
+          <TeacherActivityTab supervisorId={supervisorId} user={user} navigate={navigate} />
         </TabPanel>        {/* تبويبة تحضير المعلمين - محدث لاستخدام البيانات من API */}
         <TabPanel value={activeTab} index={5}>
           <Grid container spacing={3}>
@@ -1746,6 +1590,311 @@ const SupervisorDashboard: React.FC = () => {
         </Dialog>
       </Container>
     </Box>
+  );
+};
+
+// واجهات البيانات لنشاط المعلمين
+interface TeacherActivity {
+  teacher_id: number;
+  teacher_name: string;
+  phone: string;
+  job_title: string;
+  circle: {
+    id: number;
+    name: string;
+  };
+  mosque: {
+    id: number;
+    name: string;
+  };
+  daily_activity: {
+    has_activity: boolean;
+    attendance_recorded: boolean;
+    recitation_recorded: boolean;
+    students_count: number;
+    attendance_count: number;
+    recitation_sessions_count: number;
+    recited_students_count: number;
+    attendance_percentage: number;
+    recitation_percentage: number;
+    activity_status: string;
+    status_color: string;
+    details: {
+      attendance_status: string;
+      recitation_status: string;
+      completion_summary: string;
+    };
+  };
+}
+
+interface ActivitySummary {
+  total_teachers: number;
+  active_teachers: number;
+  attendance_recorded: number;
+  recitation_recorded: number;
+  completion_rate: number;
+  attendance_percentage: number;
+  recitation_percentage: number;
+}
+
+interface TeacherActivityResponse {
+  success: boolean;
+  data: {
+    date: string;
+    supervisor: {
+      id: number;
+      name: string;
+    };
+    teachers_activity: TeacherActivity[];
+    summary: ActivitySummary;
+  };
+}
+
+// دالة لتنسيق التاريخ
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// component منفصل لتبويبة نشاط المعلمين
+const TeacherActivityTab: React.FC<{
+  supervisorId: number;
+  user: any;
+  navigate: any;
+}> = ({ supervisorId, user, navigate }) => {
+  const [selectedDate] = useState<Date>(new Date());
+  
+  // جلب بيانات نشاط المعلمين باستخدام نفس API الموحد
+  const {
+    data: activityData,
+    isLoading: activityLoading,
+    error: activityError
+  } = useQuery<TeacherActivityResponse>({
+    queryKey: ['teacherActivitySummary', supervisorId, formatDate(selectedDate)],
+    queryFn: async () => {
+      const dateStr = formatDate(selectedDate);
+      const API_BASE_URL = 'https://inviting-pleasantly-barnacle.ngrok-free.app';
+      
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      };
+      
+      if (user?.token) {
+        headers['Authorization'] = `Bearer ${user.token}`;
+      }
+      
+      const response = await fetch(
+        `${API_BASE_URL}/api/test/teachers-daily-activity?supervisor_id=${supervisorId}&date=${dateStr}`,
+        {
+          method: 'GET',
+          headers
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`فشل في جلب البيانات: ${response.status}`);
+      }
+      
+      return response.json();
+    },
+    enabled: !!supervisorId,
+    retry: 1
+  });
+
+  // استخراج البيانات
+  const summary = activityData?.data?.summary;
+  const teachersActivity = activityData?.data?.teachers_activity || [];
+
+  if (activityLoading) {
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, textAlign: 'center' }}>
+            <CircularProgress />
+            <Typography variant="h6" sx={{ mt: 2 }}>
+              جاري تحميل بيانات نشاط المعلمين...
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+    );
+  }
+
+  if (activityError) {
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
+            <Alert severity="error">
+              خطأ في تحميل بيانات نشاط المعلمين: {activityError.message}
+            </Alert>
+          </Paper>
+        </Grid>
+      </Grid>
+    );
+  }
+
+  return (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6" fontWeight="bold">
+              متابعة نشاط المعلمين اليومي
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/teacher-activity-dashboard')}
+              startIcon={<TimelineIcon />}
+              sx={{
+                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #1976D2 30%, #2196F3 90%)',
+                }
+              }}
+            >
+              صفحة المتابعة التفصيلية
+            </Button>
+          </Box>
+          
+          <Grid container spacing={3}>
+            {/* بطاقة تلخيصية للمؤشرات - من API */}
+            <Grid item xs={12} md={6}>
+              <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'primary.light', color: 'white' }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  📊 ملخص نشاط اليوم
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h3" fontWeight="bold">
+                        {summary?.total_teachers || 0}
+                      </Typography>
+                      <Typography variant="body2">
+                        إجمالي المعلمين
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h3" fontWeight="bold">
+                        {summary?.active_teachers || 0}
+                      </Typography>
+                      <Typography variant="body2">
+                        معلمين نشطين
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'success.light', color: 'white' }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  ✅ مؤشرات الأداء
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h3" fontWeight="bold">
+                        {Math.round(summary?.attendance_percentage || 0)}%
+                      </Typography>
+                      <Typography variant="body2">
+                        نسبة التحضير
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h3" fontWeight="bold">
+                        {Math.round(summary?.recitation_percentage || 0)}%
+                      </Typography>
+                      <Typography variant="body2">
+                        نسبة التسميع
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Card>
+            </Grid>
+
+            {/* قائمة المعلمين من API */}
+            <Grid item xs={12}>
+              <Card elevation={0} sx={{ borderRadius: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    قائمة المعلمين السريعة ({teachersActivity.length} معلم)
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {teachersActivity.slice(0, 6).map((teacher) => (
+                      <Grid item xs={12} sm={6} md={4} key={teacher.teacher_id}>
+                        <Card 
+                          elevation={1} 
+                          sx={{ 
+                            p: 2, 
+                            borderRadius: 2,
+                            transition: 'transform 0.2s',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: 4
+                            }
+                          }}
+                        >
+                          <Box display="flex" alignItems="center" mb={1}>
+                            <Avatar sx={{ bgcolor: 'primary.main', mr: 1, width: 32, height: 32 }}>
+                              <PersonIcon fontSize="small" />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {teacher.teacher_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {teacher.circle?.name || 'لا توجد حلقة'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          
+                          <Box display="flex" gap={1}>
+                            <Chip 
+                              size="small" 
+                              label={teacher.daily_activity.activity_status}
+                              color={teacher.daily_activity.has_activity ? "success" : "default"}
+                              variant="outlined"
+                            />
+                            <Chip 
+                              size="small" 
+                              label={`${Math.round(teacher.daily_activity.attendance_percentage)}%`}
+                              color="primary" 
+                              variant="outlined"
+                            />
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                  
+                  <Box textAlign="center" mt={3}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => navigate('/teacher-activity-dashboard')}
+                      startIcon={<AssessmentIcon />}
+                      size="large"
+                    >
+                      عرض التفاصيل الكاملة لجميع المعلمين
+                    </Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 };
 
