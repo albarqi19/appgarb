@@ -182,15 +182,66 @@ const SupervisorDashboard: React.FC = () => {
   const supervisedMosquesList = mosques.filter(m => currentSupervisor.supervisedMosques.includes(m.id));
   const supervisedStudents = students.filter(s => currentSupervisor.supervisedMosques.includes(s.mosqueId));  const todayAttendance = teacherAttendanceData.filter(ta => ta.date === '2025-06-07' && currentSupervisor.supervisedMosques.includes(ta.mosqueId));
 
-  // الحصول على إحصائيات المشرف (محدثة لاستخدام البيانات من API)
+  // إضافة API endpoint للحصول على نشاط المعلمين اليومي
+  const API_BASE_URL = 'https://inviting-pleasantly-barnacle.ngrok-free.app';
+  
+  // دالة لتنسيق التاريخ
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // جلب بيانات نشاط المعلمين اليوميى لحساب الحضور الحقيقي
+  const {
+    data: teacherActivityData,
+    isLoading: isLoadingActivity
+  } = useQuery({
+    queryKey: ['teacherActivityForStats', 1, formatDate(new Date())], // معرف المشرف = 1
+    queryFn: async () => {
+      const dateStr = formatDate(new Date());
+      
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      };
+      
+      if (user?.token) {
+        headers['Authorization'] = `Bearer ${user.token}`;
+      }
+      
+      const response = await fetch(
+        `${API_BASE_URL}/api/test/teachers-daily-activity?supervisor_id=1&date=${dateStr}`,
+        {
+          method: 'GET',
+          headers
+        }
+      );
+      
+      if (!response.ok) {
+        console.warn('فشل في جلب بيانات نشاط المعلمين للإحصائيات');
+        return null;
+      }
+      
+      return response.json();
+    },
+    enabled: true,
+    retry: 1,
+    refetchOnWindowFocus: false
+  });
+
+  // الحصول على إحصائيات المشرف (محدثة لاستخدام البيانات من API مع حضور حقيقي)
   const getSupervisorStats = () => {
-    console.log('🔍 فحص البيانات:', {
+    console.log('🔍 فحص البيانات للإحصائيات:', {
       loading,
       supervisorStats,
       hasStats: !!supervisorStats,
       supervisorCircles: supervisorCircles.length,
       supervisorStudents: supervisorStudents.length,
-      supervisorTeachers: supervisorTeachers.length
+      supervisorTeachers: supervisorTeachers.length,
+      teacherActivityData: !!teacherActivityData,
+      isLoadingActivity
     });
 
     if (loading) {
@@ -203,63 +254,68 @@ const SupervisorDashboard: React.FC = () => {
         presentTeachers: 0,
         totalTeachers: 0
       };
-    }    // استخدام البيانات من API إذا توفرت
-    if (supervisorStats) {
-      console.log('✅ استخدام بيانات API:', supervisorStats);
-        // التحقق من هيكل البيانات الجديد باستخدام any cast
-      const stats = supervisorStats as any;      if (stats.supervisors && stats.circles) {
-        const supervisorData = stats.supervisors;
-        const circlesData = stats.circles;
-        
-        console.log('🔍 بيانات المشرفين:', supervisorData);
-        console.log('🔍 بيانات الحلقات:', circlesData);
-        
-        // استخدام الهيكل الصحيح للبيانات
-        const result = {
-          totalMosques: circlesData.total || 0, // استخدام إجمالي الحلقات كعدد المساجد
-          totalStudents: supervisorStudents.length || 0, // من البيانات المحملة
-          attendanceRate: 85, // قيمة مؤقتة - يمكن حسابها من البيانات
-          pendingTransfers: 0, // من البيانات المحملة
-          presentTeachers: supervisorData.active || 0,
-          totalTeachers: supervisorTeachers.length || 0 // من البيانات المحملة
-        };
-        
-        console.log('📊 الإحصائيات المحسوبة من API:', result);
-        return result;
-      }
-        // الهيكل القديم للتوافق
-      const fallbackResult = {
-        totalMosques: supervisorStats.mosques_count || 0,
-        totalStudents: supervisorStats.students_count || 0,
-        attendanceRate: supervisorStats.attendance_rate || 0,
-        pendingTransfers: supervisorStats.transfer_requests?.pending || 0,
-        presentTeachers: Math.round((supervisorStats.attendance_rate / 100) * supervisorStats.teachers_count) || 0,
-        totalTeachers: supervisorStats.teachers_count || 0
-      };
-      
-      console.log('📊 الإحصائيات من الهيكل القديم:', fallbackResult);
-      return fallbackResult;
     }
 
-    // البيانات المحسوبة من البيانات المحملة محلياً كبديل
-    console.log('🔄 استخدام البيانات المحلية كبديل');
-    const totalMosques = new Set(supervisorCircles.map(c => c.mosque.id)).size;
+    // حساب الإحصائيات من البيانات الحقيقية المحملة من API
+    console.log('📊 حساب الإحصائيات من البيانات الحقيقية...');
+    
+    // حساب عدد المساجد الفريدة
+    const uniqueMosques = new Set(supervisorCircles.map(c => c.mosque.id));
+    const totalMosques = uniqueMosques.size;
+    
+    // عدد الطلاب الإجمالي
     const totalStudents = supervisorStudents.length;
+    
+    // عدد المعلمين الإجمالي
     const totalTeachers = supervisorTeachers.length;
     
-    // حساب معدل الحضور من بيانات API (مؤقتاً من البيانات المحلية)
-    const presentTeachers = todayAttendance.filter(ta => ta.status === 'حاضر').length;
-    const attendanceRate = totalTeachers > 0 ? Math.round((presentTeachers / totalTeachers) * 100) : 0;
-    const pendingTransfers = studentTransferRequests.filter(str => str.status === 'pending').length;
+    // حساب عدد المعلمين الحاضرين بناءً على النشاط الحقيقي
+    let presentTeachers = 0;
+    let attendanceRate = 0;
+    
+    if (teacherActivityData?.success && teacherActivityData?.data?.teachers_activity) {
+      // حساب المعلمين الحاضرين بناءً على وجود نشاط (تحضير أو تسميع)
+      const teachersWithActivity = teacherActivityData.data.teachers_activity.filter(
+        (teacher: any) => teacher.daily_activity.has_activity && 
+        (teacher.daily_activity.attendance_recorded || teacher.daily_activity.recitation_recorded)
+      );
+      
+      presentTeachers = teachersWithActivity.length;
+      attendanceRate = teacherActivityData.data.teachers_activity.length > 0 
+        ? Math.round((presentTeachers / teacherActivityData.data.teachers_activity.length) * 100)
+        : 0;
+      
+      console.log('✅ حضور المعلمين محسوب من بيانات النشاط الحقيقية:', {
+        totalFromActivity: teacherActivityData.data.teachers_activity.length,
+        presentTeachers,
+        attendanceRate
+      });
+    } else {
+      // إذا لم تتوفر بيانات النشاط، استخدم تقدير محافظ
+      presentTeachers = Math.floor(totalTeachers * 0.75); // تقدير محافظ 75%
+      attendanceRate = totalTeachers > 0 ? Math.round((presentTeachers / totalTeachers) * 100) : 0;
+      
+      console.log('⚠️ استخدام تقدير للحضور (بيانات النشاط غير متوفرة):', {
+        totalTeachers,
+        presentTeachers,
+        attendanceRate
+      });
+    }
+    
+    // عدد طلبات النقل المعلقة (يمكن تحسينه بـ API منفصل)
+    const pendingTransfers = 0; // سيتم تحديثه عند توفر API طلبات النقل
 
-    return {
+    const result = {
       totalMosques,
       totalStudents,
       attendanceRate,
       pendingTransfers,
-      presentTeachers: presentTeachers || 0,
+      presentTeachers,
       totalTeachers
     };
+    
+    console.log('✅ الإحصائيات المحسوبة من البيانات الحقيقية:', result);
+    return result;
   };
 
   const stats = useMemo(() => getSupervisorStats(), [
@@ -267,7 +323,9 @@ const SupervisorDashboard: React.FC = () => {
     supervisorStats, 
     supervisorCircles.length, 
     supervisorStudents.length, 
-    supervisorTeachers.length
+    supervisorTeachers.length,
+    teacherActivityData,
+    isLoadingActivity
   ]);
 
   // إعادة حساب الإحصائيات عند تحديث البيانات
@@ -644,6 +702,24 @@ const SupervisorDashboard: React.FC = () => {
                           <Typography variant="caption" sx={{ opacity: 0.8 }}>
                             حضور المعلمين
                           </Typography>
+                          {teacherActivityData?.success && (
+                            <Typography variant="caption" display="block" sx={{ 
+                              opacity: 0.6, 
+                              fontSize: '0.65rem',
+                              color: 'success.main' 
+                            }}>
+                              ✓ بيانات حقيقية
+                            </Typography>
+                          )}
+                          {(!teacherActivityData?.success && !isLoadingActivity) && (
+                            <Typography variant="caption" display="block" sx={{ 
+                              opacity: 0.6, 
+                              fontSize: '0.65rem',
+                              color: 'warning.main' 
+                            }}>
+                              ~ تقدير
+                            </Typography>
+                          )}
                         </Box>
                       </Grid>
                       <Grid item xs={6} sm={3}>
@@ -1742,9 +1818,14 @@ const TeacherActivityTab: React.FC<{
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" fontWeight="bold">
-              متابعة نشاط المعلمين اليومي
-            </Typography>
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                متابعة نشاط المعلمين اليومي
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                * يتم حساب الحضور بناءً على وجود تحضير أو تسميع فقط
+              </Typography>
+            </Box>
             <Button
               variant="contained"
               onClick={() => navigate('/teacher-activity-dashboard')}
