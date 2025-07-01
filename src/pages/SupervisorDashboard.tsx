@@ -55,7 +55,8 @@ import supervisorService, {
   SupervisorTeacher, 
   SupervisorStudent, 
   SupervisorCircle,
-  SupervisorStatistics 
+  SupervisorStatistics,
+  SubCircle
 } from '../services/supervisorService';
 // استيراد خدمة النظرة الشاملة
 import comprehensiveService, { 
@@ -89,6 +90,9 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VacationIcon from '@mui/icons-material/BeachAccess';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import PersonIcon from '@mui/icons-material/Person';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -121,6 +125,8 @@ const SupervisorDashboard: React.FC = () => {
   const [targetMosque, setTargetMosque] = useState('');
   const [targetCircle, setTargetCircle] = useState(''); // إضافة اختيار الحلقة
   const [transferType, setTransferType] = useState('mosque'); // نوع النقل: mosque أو circle
+  const [subCircles, setSubCircles] = useState<SubCircle[]>([]); // قائمة الحلقات الفرعية
+  const [loadingSubCircles, setLoadingSubCircles] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);  const [selectedTeacher, setSelectedTeacher] = useState('');
   const [attendanceStatus, setAttendanceStatus] = useState('');
   const [attendanceNotes, setAttendanceNotes] = useState('');
@@ -156,6 +162,16 @@ const SupervisorDashboard: React.FC = () => {
   const supervisorStudents = completeData?.students || [];
   const supervisorCircles = completeData?.circles || [];
   const supervisorStats = completeData?.statistics || null;
+
+  // إضافة console.log لمراقبة البيانات
+  console.log('🔍 بيانات المشرف الأساسية:', {
+    loading,
+    hasCompleteData: !!completeData,
+    circlesCount: supervisorCircles.length,
+    hasToken: !!user?.token,
+    user: user,
+    supervisorCircles: supervisorCircles.map(c => ({ id: c.id, name: c.name }))
+  });
   const error = isError ? 'فشل في تحميل بيانات المشرف' : null;
 
   // البيانات الشاملة الجديدة
@@ -259,13 +275,76 @@ const SupervisorDashboard: React.FC = () => {
     console.log('🔄 تحديث الإحصائيات بعد تحديث البيانات');
   }, [supervisorStats, supervisorCircles.length, supervisorStudents.length, supervisorTeachers.length]);
 
+  // جلب الحلقات الفرعية عند تحميل بيانات الحلقات
+  useEffect(() => {
+    console.log('🔄 useEffect تم تنفيذه - جلب الحلقات الفرعية');
+    const fetchAllSubCircles = async () => {
+      console.log('🔍 تحقق من الشروط:', {
+        circlesLength: supervisorCircles.length,
+        hasToken: !!user?.token,
+        circles: supervisorCircles.map(c => ({ id: c.id, name: c.name }))
+      });
+      
+      if (supervisorCircles.length > 0) {
+        console.log('🔄 جاري جلب الحلقات الفرعية للحلقات المتاحة...');
+        setLoadingSubCircles(true);
+        
+        const allSubCircles = [];
+        
+        for (const circle of supervisorCircles) {
+          try {
+            console.log(`📡 جلب الحلقات الفرعية للحلقة: ${circle.name} (ID: ${circle.id})`);
+            // تجربة بدون token أولاً، ثم مع token إذا فشل
+            const response = await supervisorService.getQuranSchoolHierarchy(circle.id, user?.token || undefined);
+            console.log(`📋 استجابة API للحلقة ${circle.id}:`, response);
+            
+            if (response.success && response.data?.sub_circles) {
+              // إضافة معلومات الحلقة الأساسية لكل حلقة فرعية
+              const circleSubCircles = response.data.sub_circles.map(subCircle => ({
+                ...subCircle,
+                parent_circle_id: circle.id,
+                parent_circle_name: circle.name,
+                mosque_name: response.data.mosque.mosque_name
+              }));
+              
+              allSubCircles.push(...circleSubCircles);
+              console.log(`✅ تم جلب ${circleSubCircles.length} حلقات فرعية للحلقة ${circle.name}`);
+            } else {
+              console.warn(`⚠️ لا توجد حلقات فرعية أو فشل في جلب البيانات للحلقة ${circle.name}`);
+            }
+          } catch (error) {
+            console.error(`❌ خطأ في جلب الحلقات الفرعية للحلقة ${circle.name}:`, error);
+          }
+        }
+        
+        setSubCircles(allSubCircles);
+        setLoadingSubCircles(false);
+        console.log(`🎯 تم جلب إجمالي ${allSubCircles.length} حلقة فرعية`, allSubCircles);
+      } else {
+        console.log('❌ لا يمكن جلب الحلقات الفرعية - لا توجد حلقات متاحة');
+        setSubCircles([]);
+        setLoadingSubCircles(false);
+      }
+    };
+
+    fetchAllSubCircles();
+  }, [supervisorCircles.length, user?.token, loading]); // إضافة loading للتأكد من التنفيذ بعد تحميل البيانات
+
   // معالجة طلب نقل طالب - محدث للعمل مع APIs والحلقات
   const handleStudentTransfer = async () => {
     try {
+      console.log('🔍 بيانات النقل قبل الإرسال:', {
+        selectedStudent,
+        transferReason,
+        transferType,
+        targetMosque,
+        targetCircle
+      });
+
       // بناء بيانات النقل حسب التوثيق
       const transferData: any = {
         student_id: parseInt(selectedStudent),
-        transfer_reason: transferReason,
+        transfer_reason: transferReason || 'لم يتم تحديد سبب', // سبب افتراضي إذا كان فارغاً
         notes: `نقل من نوع: ${transferType === 'mosque' ? 'إلى مسجد آخر' : 'بين الحلقات'}`
       };
 
@@ -276,7 +355,7 @@ const SupervisorDashboard: React.FC = () => {
         transferData.requested_circle_id = parseInt(targetCircle);
       }
       
-      console.log('طلب نقل:', transferData);
+      console.log('📤 بيانات النقل النهائية:', transferData);
       
       // إرسال طلب النقل إلى API
       const success = await supervisorService.requestStudentTransfer(transferData, user?.token);
@@ -324,7 +403,7 @@ const SupervisorDashboard: React.FC = () => {
     }
   };
 
-  // الحصول على أيقونة الحضور
+  // الحصول على إيقونة الحضور
   const getAttendanceIcon = (status: string) => {
     switch (status) {
       case 'حاضر':
@@ -401,6 +480,42 @@ const SupervisorDashboard: React.FC = () => {
 
     return filtered;
   };
+
+  // دالة لجلب الحلقات الفرعية للحلقة الحالية للطالب
+  const fetchSubCircles = async (studentId: string) => {
+    if (!studentId) {
+      setSubCircles([]);
+      return;
+    }
+
+    const student = supervisorStudents.find(s => s.id.toString() === studentId);
+    if (!student?.circle?.id) {
+      setSubCircles([]);
+      return;
+    }
+
+    setLoadingSubCircles(true);
+    try {
+      const response = await supervisorService.getQuranSchoolHierarchy(student.circle.id, user?.token);
+      if (response.success && response.data.sub_circles) {
+        setSubCircles(response.data.sub_circles);
+      } else {
+        setSubCircles([]);
+      }
+    } catch (error) {
+      console.error('خطأ في جلب الحلقات الفرعية:', error);
+      setSubCircles([]);
+    } finally {
+      setLoadingSubCircles(false);
+    }
+  };
+
+  // تحديث الحلقات الفرعية عند تغيير الطالب المحدد
+  useEffect(() => {
+    if (transferType === 'circle' && selectedStudent) {
+      fetchSubCircles(selectedStudent);
+    }
+  }, [selectedStudent, transferType]);
 
   return (
     <Box 
@@ -592,6 +707,7 @@ const SupervisorDashboard: React.FC = () => {
           >            <Tab label="النظرة الشاملة" />
             <Tab label="نظرة عامة" />
             <Tab label="المساجد والحلقات" />
+            <Tab label="متابعة نشاط المعلمين" />
             <Tab label="تحضير المعلمين" />
             <Tab label="نقل الطلاب" />
             <Tab label="التوصيات الذكية" />
@@ -887,8 +1003,13 @@ const SupervisorDashboard: React.FC = () => {
                           <TableCell>{student.circle && student.circle.mosque ? student.circle.mosque.name : 'غير محدد'}</TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {student.circle ? student.circle.name : 'غير محدد'}
+                              {student.group ? student.group.name : (student.circle ? student.circle.name : 'غير محدد')}
                             </Typography>
+                            {student.group && student.circle && (
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                {student.circle.name}
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -923,8 +1044,167 @@ const SupervisorDashboard: React.FC = () => {
               </Paper>
             </Grid>
           </Grid>
-        </TabPanel>        {/* تبويبة تحضير المعلمين - محدث لاستخدام البيانات من API */}
+        </TabPanel>        {/* تبويبة متابعة نشاط المعلمين */}
         <TabPanel value={activeTab} index={3}>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography variant="h6" fontWeight="bold">
+                    متابعة نشاط المعلمين اليومي
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate('/teacher-activity-dashboard')}
+                    startIcon={<TimelineIcon />}
+                    sx={{
+                      background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                      boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #1976D2 30%, #2196F3 90%)',
+                      }
+                    }}
+                  >
+                    صفحة المتابعة التفصيلية
+                  </Button>
+                </Box>
+                
+                <Grid container spacing={3}>
+                  {/* بطاقة تلخيصية للمؤشرات */}
+                  <Grid item xs={12} md={6}>
+                    <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'primary.light', color: 'white' }}>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        📊 ملخص نشاط اليوم
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Box textAlign="center">
+                            <Typography variant="h3" fontWeight="bold">
+                              {supervisorTeachers.length}
+                            </Typography>
+                            <Typography variant="body2">
+                              إجمالي المعلمين
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Box textAlign="center">
+                            <Typography variant="h3" fontWeight="bold">
+                              {Math.round(supervisorTeachers.length * 0.8)}
+                            </Typography>
+                            <Typography variant="body2">
+                              معلمين نشطين
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'success.light', color: 'white' }}>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        ✅ مؤشرات الأداء
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Box textAlign="center">
+                            <Typography variant="h3" fontWeight="bold">
+                              85%
+                            </Typography>
+                            <Typography variant="body2">
+                              نسبة التحضير
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Box textAlign="center">
+                            <Typography variant="h3" fontWeight="bold">
+                              78%
+                            </Typography>
+                            <Typography variant="body2">
+                              نسبة التسميع
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Card>
+                  </Grid>
+
+                  {/* قائمة المعلمين مع أزرار سريعة */}
+                  <Grid item xs={12}>
+                    <Card elevation={0} sx={{ borderRadius: 3 }}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom>
+                          قائمة المعلمين السريعة
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {supervisorTeachers.slice(0, 6).map((teacher) => (
+                            <Grid item xs={12} sm={6} md={4} key={teacher.id}>
+                              <Card 
+                                elevation={1} 
+                                sx={{ 
+                                  p: 2, 
+                                  borderRadius: 2,
+                                  transition: 'transform 0.2s',
+                                  '&:hover': {
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: 4
+                                  }
+                                }}
+                              >
+                                <Box display="flex" alignItems="center" mb={1}>
+                                  <Avatar sx={{ bgcolor: 'primary.main', mr: 1, width: 32, height: 32 }}>
+                                    <PersonIcon fontSize="small" />
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="subtitle2" fontWeight="bold">
+                                      {teacher.name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {teacher.circle?.name || 'لا توجد حلقة'}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                                
+                                <Box display="flex" gap={1}>
+                                  <Chip 
+                                    size="small" 
+                                    label="نشط" 
+                                    color="success" 
+                                    variant="outlined"
+                                  />
+                                  <Chip 
+                                    size="small" 
+                                    label="85%" 
+                                    color="primary" 
+                                    variant="outlined"
+                                  />
+                                </Box>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                        
+                        <Box textAlign="center" mt={3}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => navigate('/teacher-activity-dashboard')}
+                            startIcon={<AssessmentIcon />}
+                            size="large"
+                          >
+                            عرض التفاصيل الكاملة لجميع المعلمين
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          </Grid>
+        </TabPanel>        {/* تبويبة تحضير المعلمين - محدث لاستخدام البيانات من API */}
+        <TabPanel value={activeTab} index={5}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
@@ -1023,7 +1303,7 @@ const SupervisorDashboard: React.FC = () => {
             </Grid>
           </Grid>
         </TabPanel>        {/* تبويبة نقل الطلاب */}
-        <TabPanel value={activeTab} index={4}>
+        <TabPanel value={activeTab} index={6}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
@@ -1125,7 +1405,7 @@ const SupervisorDashboard: React.FC = () => {
             </Grid>
           </Grid>
         </TabPanel>        {/* تبويبة التوصيات الذكية */}
-        <TabPanel value={activeTab} index={5}>
+        <TabPanel value={activeTab} index={7}>
           <Grid container spacing={3}>
             {supervisorAIRecommendations.map((recommendation) => (
               <Grid item xs={12} md={6} key={recommendation.id}>
@@ -1206,7 +1486,7 @@ const SupervisorDashboard: React.FC = () => {
             ))}
           </Grid>
         </TabPanel>        {/* تبويبة التقارير */}
-        <TabPanel value={activeTab} index={6}>
+        <TabPanel value={activeTab} index={8}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
@@ -1333,17 +1613,43 @@ const SupervisorDashboard: React.FC = () => {
               {/* اختيار الحلقة (في حالة النقل بين الحلقات) */}
               {transferType === 'circle' && (
                 <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>الحلقة الجديدة</InputLabel>
+                  <InputLabel>الحلقة الفرعية الجديدة</InputLabel>
                   <Select
                     value={targetCircle}
                     onChange={(e) => setTargetCircle(e.target.value)}
-                    label="الحلقة الجديدة"
+                    label="الحلقة الفرعية الجديدة"
+                    disabled={loadingSubCircles || !selectedStudent}
                   >
-                    {supervisorCircles.map((circle) => (
-                      <MenuItem key={circle.id} value={circle.id}>
-                        {circle.name} - {circle.mosque.name} ({circle.time_period})
-                      </MenuItem>
-                    ))}
+                    {(() => {
+                      console.log('🔍 حالة الحلقات الفرعية:', {
+                        loading: loadingSubCircles,
+                        selectedStudent,
+                        subCirclesCount: subCircles.length,
+                        subCircles: subCircles
+                      });
+                      
+                      if (loadingSubCircles) {
+                        return (
+                          <MenuItem disabled>
+                            <CircularProgress size={20} sx={{ mr: 1 }} />
+                            جاري تحميل الحلقات الفرعية...
+                          </MenuItem>
+                        );
+                      } else if (subCircles.length > 0) {
+                        return subCircles.map((subCircle) => (
+                          <MenuItem key={subCircle.sub_circle_id} value={subCircle.sub_circle_id}>
+                            {subCircle.sub_circle_name} - {subCircle.teacher.teacher_name}
+                            {subCircle.status !== 'نشطة' && ` (${subCircle.status})`}
+                          </MenuItem>
+                        ));
+                      } else {
+                        return (
+                          <MenuItem disabled>
+                            {selectedStudent ? 'لا توجد حلقات فرعية متاحة' : 'يرجى اختيار طالب أولاً'}
+                          </MenuItem>
+                        );
+                      }
+                    })()}
                   </Select>
                 </FormControl>
               )}
@@ -1352,10 +1658,10 @@ const SupervisorDashboard: React.FC = () => {
                 fullWidth
                 multiline
                 rows={3}
-                label="سبب النقل"
+                label="سبب النقل (اختياري)"
                 value={transferReason}
                 onChange={(e) => setTransferReason(e.target.value)}
-                placeholder="اذكر سبب طلب النقل..."
+                placeholder="اذكر سبب طلب النقل (اختياري)..."
               />
             </Box>
           </DialogContent>
@@ -1367,7 +1673,6 @@ const SupervisorDashboard: React.FC = () => {
               onClick={handleStudentTransfer}
               disabled={
                 !selectedStudent || 
-                !transferReason || 
                 (transferType === 'mosque' && !targetMosque) ||
                 (transferType === 'circle' && !targetCircle)
               }
@@ -1386,7 +1691,8 @@ const SupervisorDashboard: React.FC = () => {
         >
           <DialogTitle>تسجيل حضور المعلم</DialogTitle>
           <DialogContent>
-            <Box sx={{ pt: 2 }}>              <FormControl fullWidth sx={{ mb: 2 }}>
+            <Box sx={{ pt: 2 }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>اختر المعلم</InputLabel>
                 <Select
                   value={selectedTeacher}

@@ -158,6 +158,39 @@ export interface SupervisorStatisticsResponse {
   data: SupervisorStatistics;
 }
 
+// واجهات البيانات للحلقات الفرعية
+export interface SubCircle {
+  sub_circle_id: number;
+  sub_circle_name: string;
+  status: string;
+  description: string | null;
+  meeting_days: string | null;
+  teacher: {
+    teacher_id: number;
+    teacher_name: string;
+  };
+}
+
+export interface QuranSchoolHierarchy {
+  quran_school_id: number;
+  quran_school_name: string;
+  circle_type: string;
+  circle_status: string;
+  time_period: string;
+  mosque: {
+    mosque_id: number;
+    mosque_name: string;
+  };
+  total_sub_circles: number;
+  sub_circles: SubCircle[];
+}
+
+export interface QuranSchoolHierarchyResponse {
+  success: boolean;
+  message: string;
+  data: QuranSchoolHierarchy;
+}
+
 // === دوال خدمة المشرف ===
 
 /**
@@ -420,6 +453,7 @@ export const getSupervisorStatistics = async (token?: string): Promise<Superviso
 export const requestStudentTransfer = async (transferData: any, token?: string): Promise<boolean> => {
   try {
     console.log('📤 إرسال طلب نقل طالب:', transferData);
+    console.log('📤 الـ token المستخدم:', token ? 'موجود' : 'غير موجود');
     
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -431,14 +465,23 @@ export const requestStudentTransfer = async (transferData: any, token?: string):
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    console.log('📤 الـ headers المرسلة:', headers);
+
     const response = await fetch(`${API_BASE_URL}/supervisors/student-transfer`, {
       method: 'POST',
       headers,
       body: JSON.stringify(transferData)
     });
 
+    console.log('📋 استجابة API:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
     if (!response.ok) {
-      console.error(`فشل في إرسال طلب النقل: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ فشل في إرسال طلب النقل: ${response.status} - ${errorText}`);
       return false;
     }
 
@@ -880,6 +923,26 @@ export const convertApiCircleToLocal = (apiCircle: SupervisorCircle) => {
   };
 };
 
+// دالة لجلب الحلقات الفرعية لحلقة قرآنية محددة
+export const getQuranSchoolHierarchy = async (quranCircleId: number, token?: string): Promise<QuranSchoolHierarchyResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/hierarchy/quran-school/${quranCircleId}`, {
+      method: 'GET',
+      headers: getApiHeaders(false), // بدون مصادقة للاختبار
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data: QuranSchoolHierarchyResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching quran school hierarchy:', error);
+    throw error;
+  }
+};
+
 export default {
   getSupervisorDashboard,
   getSupervisorTeachers,
@@ -898,5 +961,6 @@ export default {
   createTeacherEvaluation,
   getTeacherEvaluations,
   approveTransferRequest,
-  rejectTransferRequest
+  rejectTransferRequest,
+  getQuranSchoolHierarchy
 };

@@ -92,6 +92,8 @@ try {
     # بيانات تسجيل دخول تجريبية للمشرف
     $supervisorCredentials = @(
         @{ identity_number = "1234567890"; password = "password123" },
+        @{ identity_number = "1234567890"; password = "123456" },
+        @{ identity_number = "1234567890"; password = "admin123" },
         @{ identity_number = "1074554779"; password = "123456" },
         @{ identity_number = "1111111111"; password = "supervisor123" },
         @{ identity_number = "2222222222"; password = "admin123" }
@@ -164,6 +166,71 @@ try {
         }
         catch {
             Print-Error -Title "طلبات النقل" -Error $_ -Method "GET" -Url $url
+        }
+        
+        # اختبار API تتبع نشاط المعلمين اليومي
+        Write-Host "`n🎯 اختبار: تتبع نشاط المعلمين اليومي" -ForegroundColor Blue
+        $supervisorId = 1 # معرف المشرف
+        $date = Get-Date -Format "yyyy-MM-dd"
+        $url = "$API_BASE_URL/supervisors/teachers-daily-activity?supervisor_id=$supervisorId&date=$date"
+        try {
+            $response = Invoke-WebRequest -Uri $url -Method GET -Headers $AuthHeaders -UseBasicParsing
+            $activityResult = Print-Response -Title "تتبع نشاط المعلمين اليومي" -Response $response -Method "GET" -Url $url
+            
+            # عرض ملخص النتائج بشكل مفصل
+            if ($activityResult -and $activityResult.success -and $activityResult.data) {
+                $summary = $activityResult.data.summary
+                Write-Host "`n📊 ملخص نشاط المعلمين:" -ForegroundColor Cyan
+                Write-Host "   إجمالي المعلمين: $($summary.total_teachers)" -ForegroundColor White
+                Write-Host "   المعلمين النشطين: $($summary.active_teachers)" -ForegroundColor Green
+                Write-Host "   سجلوا الحضور: $($summary.attendance_recorded)" -ForegroundColor Yellow
+                Write-Host "   سجلوا التسميع: $($summary.recitation_recorded)" -ForegroundColor Blue
+                Write-Host "   معدل الإنجاز: $($summary.completion_rate)%" -ForegroundColor Magenta
+                Write-Host "   معدل التحضير: $($summary.attendance_percentage)%" -ForegroundColor Green
+                Write-Host "   معدل التسميع: $($summary.recitation_percentage)%" -ForegroundColor Blue
+                
+                if ($activityResult.data.teachers_activity -and $activityResult.data.teachers_activity.Count -gt 0) {
+                    Write-Host "`n👥 تفاصيل المعلمين (أول 5 معلمين):" -ForegroundColor Cyan
+                    $teachers = $activityResult.data.teachers_activity | Select-Object -First 5
+                    foreach ($teacher in $teachers) {
+                        $activity = $teacher.daily_activity
+                        Write-Host "   📚 $($teacher.teacher_name)" -ForegroundColor White
+                        Write-Host "      الحلقة: $($teacher.circle.name)" -ForegroundColor Gray
+                        Write-Host "      الحالة: $($activity.activity_status)" -ForegroundColor $(
+                            if ($activity.status_color -eq "green") { "Green" }
+                            elseif ($activity.status_color -eq "orange") { "Yellow" }
+                            else { "Red" }
+                        )
+                        Write-Host "      الطلاب: $($activity.students_count) | الحضور: $($activity.attendance_percentage)% | التسميع: $($activity.recitation_percentage)%" -ForegroundColor Gray
+                        Write-Host "      ملخص: $($activity.details.completion_summary)" -ForegroundColor DarkGray
+                        Write-Host ""
+                    }
+                }
+            }
+        }
+        catch {
+            Print-Error -Title "تتبع نشاط المعلمين اليومي" -Error $_ -Method "GET" -Url $url
+        }
+        
+        # اختبار API إحصائيات المعلمين حسب الفترة
+        Write-Host "`n📈 اختبار: إحصائيات المعلمين (آخر 7 أيام)" -ForegroundColor Blue
+        $startDate = (Get-Date).AddDays(-7).ToString("yyyy-MM-dd")
+        $endDate = Get-Date -Format "yyyy-MM-dd"
+        $url = "$API_BASE_URL/supervisors/teachers-activity-statistics?supervisor_id=$supervisorId&start_date=$startDate&end_date=$endDate"
+        try {
+            $response = Invoke-WebRequest -Uri $url -Method GET -Headers $AuthHeaders -UseBasicParsing
+            $statsResult = Print-Response -Title "إحصائيات المعلمين" -Response $response -Method "GET" -Url $url
+            
+            # عرض ملخص الإحصائيات
+            if ($statsResult -and $statsResult.success -and $statsResult.data) {
+                Write-Host "`n📊 إحصائيات الفترة ($startDate إلى $endDate):" -ForegroundColor Cyan
+                Write-Host "   الفترة: $($statsResult.data.period_summary.days_count) أيام" -ForegroundColor White
+                Write-Host "   متوسط المعلمين النشطين يومياً: $($statsResult.data.period_summary.average_active_teachers)" -ForegroundColor Green
+                Write-Host "   متوسط معدل الإنجاز: $($statsResult.data.period_summary.average_completion_rate)%" -ForegroundColor Magenta
+            }
+        }
+        catch {
+            Print-Error -Title "إحصائيات المعلمين" -Error $_ -Method "GET" -Url $url
         }
     } else {
         Write-Host "`n🔍 اختبار APIs بدون Token (متوقع 401 Unauthorized)" -ForegroundColor Yellow

@@ -42,6 +42,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
 const SupervisorDashboard = lazy(() => import('./pages/SupervisorDashboard'));
+const TeacherActivityDashboard = lazy(() => import('./pages/TeacherActivityDashboard'));
+const TestTeacherAPI = lazy(() => import('./pages/TestTeacherAPI'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
 const QuranPage = lazy(() => import('./pages/QuranPage'));
 const AttendanceLogPage = lazy(() => import('./pages/AttendanceLogPage'));
@@ -215,6 +217,14 @@ const AppContent = () => {
                     element={
                       <ProtectedRoute allowedRoles={['supervisor']}>
                         <SupervisorDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/teacher-activity-dashboard" 
+                    element={
+                      <ProtectedRoute allowedRoles={['supervisor']}>
+                        <TeacherActivityDashboard />
                       </ProtectedRoute>
                     } 
                   />
