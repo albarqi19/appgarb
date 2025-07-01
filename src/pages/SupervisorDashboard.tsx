@@ -131,6 +131,27 @@ const SupervisorDashboard: React.FC = () => {
   const [attendanceStatus, setAttendanceStatus] = useState('');
   const [attendanceNotes, setAttendanceNotes] = useState('');
 
+  // إضافة حالات لإدارة الطلاب
+  const [addStudentDialogOpen, setAddStudentDialogOpen] = useState(false);
+  const [quranSchoolInfo, setQuranSchoolInfo] = useState<any>(null);
+  const [circleGroups, setCircleGroups] = useState<any[]>([]);
+  const [isLoadingSchoolInfo, setIsLoadingSchoolInfo] = useState(false);
+  const [newStudentData, setNewStudentData] = useState({
+    identity_number: '',
+    name: '',
+    phone: '',
+    guardian_name: '',
+    guardian_phone: '',
+    birth_date: '',
+    nationality: 'سعودي',
+    education_level: '',
+    neighborhood: '',
+    circle_group_id: '',
+    enrollment_date: '',
+    memorization_plan: '',
+    review_plan: ''
+  });
+
   // متغيرات البحث والفلترة
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMosqueFilter, setSelectedMosqueFilter] = useState('');
@@ -143,7 +164,8 @@ const SupervisorDashboard: React.FC = () => {
     data: completeData,
     isLoading: loading,
     error: queryError,
-    isError
+    isError,
+    refetch: refetchCompleteData
   } = useQuery({
     queryKey: ['supervisorCompleteData', supervisorId],
     queryFn: async () => {
@@ -388,9 +410,14 @@ const SupervisorDashboard: React.FC = () => {
     fetchAllSubCircles();
   }, [supervisorCircles.length, user?.token, loading]); // إضافة loading للتأكد من التنفيذ بعد تحميل البيانات
 
-  // معالجة طلب نقل طالب - محدث للعمل مع APIs والحلقات
+  // معالجة طلب نقل طالب - محدث للعمل مع APIs المدرسة القرآنية
   const handleStudentTransfer = async () => {
     try {
+      if (!selectedStudent) {
+        alert('يرجى اختيار طالب للنقل');
+        return;
+      }
+
       console.log('🔍 بيانات النقل قبل الإرسال:', {
         selectedStudent,
         transferReason,
@@ -399,27 +426,43 @@ const SupervisorDashboard: React.FC = () => {
         targetCircle
       });
 
-      // بناء بيانات النقل حسب التوثيق
-      const transferData: any = {
-        student_id: parseInt(selectedStudent),
-        transfer_reason: transferReason || 'لم يتم تحديد سبب', // سبب افتراضي إذا كان فارغاً
-        notes: `نقل من نوع: ${transferType === 'mosque' ? 'إلى مسجد آخر' : 'بين الحلقات'}`
-      };
-
-      // إضافة المعلومات حسب نوع النقل
-      if (transferType === 'mosque') {
-        transferData.requested_circle_id = parseInt(targetMosque);
-      } else if (transferType === 'circle') {
-        transferData.requested_circle_id = parseInt(targetCircle);
-      }
+      // بناء بيانات النقل - نقل فقط معرف الحلقة الفرعية الجديدة
+      const transferData: any = {};
       
+      if (transferType === 'circle' && targetCircle) {
+        // نقل بين الحلقات الفرعية في نفس المدرسة
+        transferData.circle_group_id = parseInt(targetCircle);
+      } else if (transferType === 'mosque' && targetMosque) {
+        // نقل إلى مسجد آخر - هذا يتطلب معالجة خاصة
+        // يجب أولاً الحصول على الحلقات الفرعية في المسجد الجديد
+        alert('نقل الطالب إلى مسجد آخر يتطلب تنسيق مع إدارة النظام');
+        return;
+      } else {
+        alert('يرجى اختيار الوجهة للنقل');
+        return;
+      }
+
       console.log('📤 بيانات النقل النهائية:', transferData);
       
-      // إرسال طلب النقل إلى API
-      const success = await supervisorService.requestStudentTransfer(transferData, user?.token);
+      // استخدام API تحديث الطالب لنقله
+      const response = await fetch(`${API_BASE_URL}/api/quran-schools/${supervisorId}/students/${selectedStudent}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify(transferData)
+      });
       
-      if (success) {
-        alert('تم إرسال طلب النقل بنجاح');
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ تم نقل الطالب بنجاح:', result);
+        alert(`تم نقل الطالب بنجاح\nنوع النقل: ${transferType === 'circle' ? 'نقل بين الحلقات' : 'نقل إلى مسجد آخر'}\nالسبب: ${transferReason || 'لم يتم تحديد سبب'}`);
+        
+        // إعادة تحميل قائمة الطلاب لإظهار التحديث
+        refetchCompleteData();
+        
+        // إغلاق النافذة وإعادة تعيين القيم
         setTransferDialogOpen(false);
         setSelectedStudent('');
         setTransferReason('');
@@ -427,12 +470,14 @@ const SupervisorDashboard: React.FC = () => {
         setTargetCircle('');
         setTransferType('mosque');
       } else {
-        alert('فشل في إرسال طلب النقل');
+        const errorData = await response.json();
+        console.error('❌ فشل في نقل الطالب:', errorData);
+        alert(`فشل في نقل الطالب: ${errorData.message || 'خطأ غير معروف'}`);
       }
       
     } catch (error) {
-      console.error('خطأ في إرسال طلب النقل:', error);
-      alert('فشل في إرسال طلب النقل');
+      console.error('❌ خطأ في نقل الطالب:', error);
+      alert('حدث خطأ في نقل الطالب');
     }
   };
 
@@ -572,8 +617,100 @@ const SupervisorDashboard: React.FC = () => {
   useEffect(() => {
     if (transferType === 'circle' && selectedStudent) {
       fetchSubCircles(selectedStudent);
+      // جلب الحلقات الفرعية من API المدرسة القرآنية أيضاً
+      fetchQuranSchoolInfo(supervisorId);
     }
   }, [selectedStudent, transferType]);
+
+  // دوال جديدة لإدارة الطلاب
+  const fetchQuranSchoolInfo = async (quranSchoolId: number) => {
+    try {
+      setIsLoadingSchoolInfo(true);
+      console.log('📡 جلب معلومات المدرسة القرآنية:', quranSchoolId);
+      
+      const response = await fetch(`${API_BASE_URL}/api/quran-schools/${quranSchoolId}/info`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ معلومات المدرسة القرآنية:', data);
+        setQuranSchoolInfo(data.data.quran_school);
+        setCircleGroups(data.data.circle_groups);
+      } else {
+        console.error('❌ فشل في جلب معلومات المدرسة القرآنية');
+      }
+    } catch (error) {
+      console.error('❌ خطأ في جلب معلومات المدرسة القرآنية:', error);
+    } finally {
+      setIsLoadingSchoolInfo(false);
+    }
+  };
+
+  const handleAddStudent = async () => {
+    try {
+      if (!newStudentData.identity_number || !newStudentData.name || !newStudentData.guardian_name || !newStudentData.guardian_phone || !newStudentData.circle_group_id) {
+        alert('يرجى ملء جميع الحقول المطلوبة');
+        return;
+      }
+
+      console.log('📤 إضافة طالب جديد:', newStudentData);
+      
+      const response = await fetch(`${API_BASE_URL}/api/quran-schools/${supervisorId}/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify(newStudentData)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ تم إضافة الطالب بنجاح:', result);
+        alert('تم إضافة الطالب بنجاح');
+        setAddStudentDialogOpen(false);
+        resetStudentForm();
+        // إعادة تحميل قائمة الطلاب
+        refetchCompleteData();
+      } else {
+        const errorData = await response.json();
+        console.error('❌ فشل في إضافة الطالب:', errorData);
+        alert(`فشل في إضافة الطالب: ${errorData.message || 'خطأ غير معروف'}`);
+      }
+    } catch (error) {
+      console.error('❌ خطأ في إضافة الطالب:', error);
+      alert('حدث خطأ في إضافة الطالب');
+    }
+  };
+
+  const resetStudentForm = () => {
+    setNewStudentData({
+      identity_number: '',
+      name: '',
+      phone: '',
+      guardian_name: '',
+      guardian_phone: '',
+      birth_date: '',
+      nationality: 'سعودي',
+      education_level: '',
+      neighborhood: '',
+      circle_group_id: '',
+      enrollment_date: '',
+      memorization_plan: '',
+      review_plan: ''
+    });
+  };
+
+  const handleOpenAddStudentDialog = () => {
+    setAddStudentDialogOpen(true);
+    // جلب معلومات المدرسة القرآنية عند فتح الحوار
+    fetchQuranSchoolInfo(supervisorId);
+  };
 
   return (
     <Box 
@@ -782,7 +919,7 @@ const SupervisorDashboard: React.FC = () => {
             }}
           >            <Tab label="النظرة الشاملة" />
             <Tab label="نظرة عامة" />
-            <Tab label="المساجد والحلقات" />
+            <Tab label="الطلاب" />
             <Tab label="متابعة نشاط المعلمين" />
             <Tab label="تحضير المعلمين" />
             <Tab label="نقل الطلاب" />
@@ -852,11 +989,11 @@ const SupervisorDashboard: React.FC = () => {
               <Card elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: 'info.light', color: 'info.contrastText' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Box>
-                    <Typography variant="h4" fontWeight="bold">
+                    <Typography variant="h6" fontWeight="bold">
                       {stats.pendingTransfers}
                     </Typography>
-                    <Typography variant="body2">
-                      طلبات النقل المعلقة
+                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                      طلبات النقل
                     </Typography>
                   </Box>
                   <TransferWithinAStationIcon sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -933,22 +1070,31 @@ const SupervisorDashboard: React.FC = () => {
               </Paper>
             </Grid>
           </Grid>
-        </TabPanel>        {/* تبويبة المساجد والحلقات */}
+        </TabPanel>        {/* تبويبة الطلاب */}
         <TabPanel value={activeTab} index={2}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h6" fontWeight="bold">
-                    إدارة الطلاب والحلقات ({getFilteredStudents().length} طالب)
+                    إدارة الطلاب ({getFilteredStudents().length} طالب)
                   </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<SwapHorizIcon />}
-                    onClick={() => setTransferDialogOpen(true)}
-                  >
-                    نقل طالب
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<PersonAddIcon />}
+                      onClick={handleOpenAddStudentDialog}
+                    >
+                      إضافة طالب
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<SwapHorizIcon />}
+                      onClick={() => setTransferDialogOpen(true)}
+                    >
+                      نقل طالب
+                    </Button>
+                  </Box>
                 </Box>
 
                 {/* أدوات البحث والفلترة */}
@@ -1468,7 +1614,8 @@ const SupervisorDashboard: React.FC = () => {
           </Grid>
         </TabPanel>
 
-        {/* نافذة نقل الطالب */}        <Dialog 
+        {/* نافذة نقل الطالب */}
+        <Dialog 
           open={transferDialogOpen} 
           onClose={() => setTransferDialogOpen(false)}
           maxWidth="sm"
@@ -1486,7 +1633,7 @@ const SupervisorDashboard: React.FC = () => {
                 >
                   {supervisorStudents.map((student) => (
                     <MenuItem key={student.id} value={student.id}>
-                      {student.name} - {student.circle && student.circle.mosque ? student.circle.mosque.name : 'غير محدد'}
+                      {student.name} - {student.group ? student.group.name : 'غير محدد'}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1522,7 +1669,7 @@ const SupervisorDashboard: React.FC = () => {
                       const mosque = supervisorCircles.find(c => c.mosque.id === mosqueId)?.mosque;
                       return mosque ? (
                         <MenuItem key={mosque.id} value={mosque.id}>
-                          {mosque.name}
+                          {mosque.name} - {mosque.location || 'غير محدد'}
                         </MenuItem>
                       ) : null;
                     })}
@@ -1538,38 +1685,26 @@ const SupervisorDashboard: React.FC = () => {
                     value={targetCircle}
                     onChange={(e) => setTargetCircle(e.target.value)}
                     label="الحلقة الفرعية الجديدة"
-                    disabled={loadingSubCircles || !selectedStudent}
+                    disabled={!selectedStudent}
                   >
-                    {(() => {
-                      console.log('🔍 حالة الحلقات الفرعية:', {
-                        loading: loadingSubCircles,
-                        selectedStudent,
-                        subCirclesCount: subCircles.length,
-                        subCircles: subCircles
-                      });
-                      
-                      if (loadingSubCircles) {
-                        return (
-                          <MenuItem disabled>
-                            <CircularProgress size={20} sx={{ mr: 1 }} />
-                            جاري تحميل الحلقات الفرعية...
+                    {selectedStudent ? (
+                      circleGroups.length > 0 ? (
+                        circleGroups.map((group) => (
+                          <MenuItem key={group.id} value={group.id}>
+                            {group.name} - المعلم: {group.teacher?.name || 'غير محدد'} 
+                            ({group.students_count} طالب)
                           </MenuItem>
-                        );
-                      } else if (subCircles.length > 0) {
-                        return subCircles.map((subCircle) => (
-                          <MenuItem key={subCircle.sub_circle_id} value={subCircle.sub_circle_id}>
-                            {subCircle.sub_circle_name} - {subCircle.teacher.teacher_name}
-                            {subCircle.status !== 'نشطة' && ` (${subCircle.status})`}
-                          </MenuItem>
-                        ));
-                      } else {
-                        return (
-                          <MenuItem disabled>
-                            {selectedStudent ? 'لا توجد حلقات فرعية متاحة' : 'يرجى اختيار طالب أولاً'}
-                          </MenuItem>
-                        );
-                      }
-                    })()}
+                        ))
+                      ) : (
+                        <MenuItem disabled>
+                          لا توجد حلقات فرعية متاحة
+                        </MenuItem>
+                      )
+                    ) : (
+                      <MenuItem disabled>
+                        يرجى اختيار طالب أولاً
+                      </MenuItem>
+                    )}
                   </Select>
                 </FormControl>
               )}
@@ -1661,6 +1796,208 @@ const SupervisorDashboard: React.FC = () => {
               disabled={!selectedTeacher || !attendanceStatus}
             >
               حفظ الحضور
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* نافذة إضافة طالب */}
+        <Dialog 
+          open={addStudentDialogOpen} 
+          onClose={() => setAddStudentDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>إضافة طالب جديد</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              {/* معلومات المدرسة القرآنية (غير قابلة للتعديل) */}
+              {isLoadingSchoolInfo ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  <Typography variant="body2">جاري تحميل معلومات المدرسة...</Typography>
+                </Box>
+              ) : quranSchoolInfo ? (
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    المدرسة القرآنية: {quranSchoolInfo.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    المسجد: {quranSchoolInfo.mosque?.name || 'غير محدد'}
+                  </Typography>
+                </Box>
+              ) : null}
+
+              <Grid container spacing={2}>
+                {/* البيانات الأساسية */}
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="رقم الهوية"
+                    value={newStudentData.identity_number}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, identity_number: e.target.value }))}
+                    placeholder="مثال: 1234567890"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="اسم الطالب"
+                    value={newStudentData.name}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="الاسم الكامل للطالب"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="هاتف الطالب (اختياري)"
+                    value={newStudentData.phone}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="مثال: 0501234567"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="تاريخ الميلاد (اختياري)"
+                    value={newStudentData.birth_date}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, birth_date: e.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+
+                {/* بيانات ولي الأمر */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mt: 2, mb: 1 }}>
+                    بيانات ولي الأمر
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="اسم ولي الأمر"
+                    value={newStudentData.guardian_name}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, guardian_name: e.target.value }))}
+                    placeholder="الاسم الكامل لولي الأمر"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="هاتف ولي الأمر"
+                    value={newStudentData.guardian_phone}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, guardian_phone: e.target.value }))}
+                    placeholder="مثال: 0507654321"
+                  />
+                </Grid>
+
+                {/* اختيار الحلقة الفرعية */}
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>الحلقة الفرعية</InputLabel>
+                    <Select
+                      value={newStudentData.circle_group_id}
+                      onChange={(e) => setNewStudentData(prev => ({ ...prev, circle_group_id: e.target.value }))}
+                      label="الحلقة الفرعية"
+                      disabled={circleGroups.length === 0}
+                    >
+                      {circleGroups.map((group) => (
+                        <MenuItem key={group.id} value={group.id}>
+                          {group.name} - المعلم: {group.teacher?.name || 'غير محدد'} 
+                          ({group.students_count} طالب)
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* بيانات إضافية */}
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>الجنسية</InputLabel>
+                    <Select
+                      value={newStudentData.nationality}
+                      onChange={(e) => setNewStudentData(prev => ({ ...prev, nationality: e.target.value }))}
+                      label="الجنسية"
+                    >
+                      <MenuItem value="سعودي">سعودي</MenuItem>
+                      <MenuItem value="مقيم">مقيم</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="المستوى التعليمي (اختياري)"
+                    value={newStudentData.education_level}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, education_level: e.target.value }))}
+                    placeholder="مثال: ابتدائي، متوسط، ثانوي"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="الحي (اختياري)"
+                    value={newStudentData.neighborhood}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, neighborhood: e.target.value }))}
+                    placeholder="اسم الحي"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="تاريخ التسجيل (اختياري)"
+                    value={newStudentData.enrollment_date}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, enrollment_date: e.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="خطة الحفظ (اختياري)"
+                    value={newStudentData.memorization_plan}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, memorization_plan: e.target.value }))}
+                    placeholder="مثال: حفظ جزء عم"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="خطة المراجعة (اختياري)"
+                    value={newStudentData.review_plan}
+                    onChange={(e) => setNewStudentData(prev => ({ ...prev, review_plan: e.target.value }))}
+                    placeholder="مثال: مراجعة يومية"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setAddStudentDialogOpen(false);
+              resetStudentForm();
+            }}>
+              إلغاء
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={handleAddStudent}
+              disabled={
+                !newStudentData.identity_number || 
+                !newStudentData.name || 
+                !newStudentData.guardian_name || 
+                !newStudentData.guardian_phone || 
+                !newStudentData.circle_group_id
+              }
+            >
+              إضافة الطالب
             </Button>
           </DialogActions>
         </Dialog>
@@ -1875,7 +2212,7 @@ const TeacherActivityTab: React.FC<{
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'success.light', color: 'white' }}>
+              <Card elevation={2} sx={{ p: 3, borderRadius: 3, bgcolor: 'success.light', color: 'success.contrastText' }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   ✅ مؤشرات الأداء
                 </Typography>
