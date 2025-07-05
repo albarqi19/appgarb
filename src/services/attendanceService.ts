@@ -213,7 +213,7 @@ export const recordBulkAttendanceFast = async (
       time: currentTime,
       students: students.map((student, index) => ({
         studentId: student.studentId || (index + 1), // استخدام studentId أو رقم تسلسلي
-        status: student.status, // إرسال بالعربية مباشرة
+        status: student.status === 'مستأذن' ? 'مأذون' : student.status, // تحويل مستأذن إلى معذور
         notes: student.notes || ''
       }))
     };
