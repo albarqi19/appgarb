@@ -27,7 +27,9 @@ import {
   InputLabel,
   Tab,
   Tabs,
-  useTheme,  Fab,
+  useTheme,
+  useMediaQuery,
+  Fab,
   Popover,
   Fade,
   Zoom,
@@ -65,7 +67,8 @@ const StudentsList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentMosque, setSelectedStudent, user } = useAppContext();
-  const theme = useTheme();const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [displayedStudents, setDisplayedStudents] = useState<Student[]>([]);
   const [apiStudents, setApiStudents] = useState<StudentWithMosque[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +81,8 @@ const StudentsList: React.FC = () => {
   const [absentAlertOpen, setAbsentAlertOpen] = useState(false);
   const [selectedStudentForAlert, setSelectedStudentForAlert] = useState<Student | null>(null);
   const [alertAttendanceStatus, setAlertAttendanceStatus] = useState<'غائب' | 'مستأذن'>('غائب');
-  const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [todayAttendance, setTodayAttendance] = useState<{[studentName: string]: 'حاضر' | 'غائب' | 'متأخر' | 'مستأذن'}>({});
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [showAttendanceHint, setShowAttendanceHint] = useState(false);
   
   // إشعار نجاح العمليات
@@ -353,7 +357,9 @@ const StudentsList: React.FC = () => {
     });
     
     setFilteredStudents(updatedStudents);
-  };// احصل على حالة الحضور الحالية للطالب
+  };
+
+  // احصل على حالة الحضور الحالية للطالب
   const getAttendanceStatus = (student: Student) => {
     // أولاً تحقق من بيانات التحضير الحقيقية لليوم
     if (todayAttendance[student.name]) {
@@ -514,20 +520,20 @@ const StudentsList: React.FC = () => {
     <Box 
       sx={{
         minHeight: '100vh',
-        pt: 10, 
-        pb: 4,
+        pt: isMobile ? 4 : 10, 
+        pb: isMobile ? 2 : 4,
         background: theme.palette.mode === 'light' 
           ? 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(255,255,255,1) 100%)'
           : 'linear-gradient(180deg, rgba(10,25,47,1) 0%, rgba(17,34,64,1) 100%)'
       }}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ px: isMobile ? 1 : 3 }}>
         {/* رأس الصفحة */}
         <Paper
           elevation={0}
           sx={{
-            p: 3,
-            mb: 4,
+            p: isMobile ? 2 : 3,
+            mb: isMobile ? 2 : 4,
             borderRadius: 3,
             background: theme.palette.mode === 'light' 
               ? 'linear-gradient(135deg, #1e6f8e 0%, #134b60 100%)'
@@ -556,9 +562,22 @@ const StudentsList: React.FC = () => {
               <ArrowBackIcon />
             </IconButton>
             <Box>
-              <Typography variant="h4" component="h1" fontWeight="bold">
+              <Typography 
+                variant={isMobile ? "h5" : "h4"} 
+                component="h1" 
+                fontWeight="bold"
+                sx={{ fontSize: isMobile ? '1.5rem' : undefined }}
+              >
                 طلاب {currentMosque?.name}
-              </Typography>              <Typography variant="body1" sx={{ opacity: 0.8, mt: 0.5 }}>
+              </Typography>
+              <Typography 
+                variant={isMobile ? "body2" : "body1"} 
+                sx={{ 
+                  opacity: 0.8, 
+                  mt: 0.5,
+                  fontSize: isMobile ? '0.875rem' : undefined
+                }}
+              >
                 إدارة شؤون الطلاب والتسميع
               </Typography>              <Chip 
                 label="يعرض طلاب المعلم" 
@@ -572,8 +591,8 @@ const StudentsList: React.FC = () => {
               />
             </Box>
           </Box>
-        </Paper>        {/* إحصائيات وفلاتر */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        </Paper>        {/* إحصائيات وفلاتر - مخفية على الجوال */}
+        <Grid container spacing={3} sx={{ mb: isMobile ? 0 : 4, display: { xs: 'none', md: 'flex' } }}>
           {/* إحصائيات */}
           <Grid item xs={12} md={9}>
             <Paper
@@ -722,8 +741,8 @@ const StudentsList: React.FC = () => {
           </Grid>
         </Grid>
 
-        {/* أدوات التصفية والترتيب */}
-        <Box sx={{ mb: 3 }}>
+        {/* أدوات التصفية والترتيب - مخفية على الجوال */}
+        <Box sx={{ mb: 3, display: { xs: 'none', md: 'block' } }}>
           <Paper
             elevation={0}
             sx={{ 
@@ -844,7 +863,7 @@ const StudentsList: React.FC = () => {
           </Grid>        ) : (
           <>
             {/* قائمة الطلاب - مع مسافة علوية كافية */}
-            <Box sx={{ mt: 4 }}>
+            <Box sx={{ mt: isMobile ? 1 : 4 }}>
               {displayedStudents.length > 0 ? (
                 <>
                   {/* عرض البطاقات في الشاشات الكبيرة */}
@@ -907,7 +926,7 @@ const StudentsList: React.FC = () => {
                             <Stack direction="row" alignItems="center" spacing={1}>
                               <FaceIcon fontSize="small" color="disabled" />
                               <Typography variant="body2" color="text.secondary">
-                                {student.level} | {student.age} سنة
+                                {student.level}
                               </Typography>
                             </Stack>
                           }
@@ -1035,7 +1054,7 @@ const StudentsList: React.FC = () => {
               <Paper 
                 elevation={0}
                 sx={{ 
-                  p: 2,
+                  p: isMobile ? 1 : 2,
                   borderRadius: 3,
                   boxShadow: '0 2px 12px rgba(0,0,0,0.05)'
                 }}
@@ -1098,7 +1117,7 @@ const StudentsList: React.FC = () => {
                             variant="subtitle1" 
                             sx={{ 
                               fontWeight: 'bold', 
-                              mb: 0.3,
+                              mb: 0.8,
                               fontSize: '1rem',
                               color: 'text.primary',
                               overflow: 'hidden',
@@ -1107,18 +1126,6 @@ const StudentsList: React.FC = () => {
                             }}
                           >
                             {student.name}
-                          </Typography>
-                          
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              color: 'text.secondary',
-                              mb: 0.8,
-                              fontSize: '0.8rem',
-                              display: 'block'
-                            }}
-                          >
-                            {student.age} سنة
                           </Typography>
                             {/* الحفظ الحالي */}
                           <Box 
@@ -1142,7 +1149,7 @@ const StudentsList: React.FC = () => {
                                 display: 'block'
                               }}
                             >
-                              📖 {student.currentMemorization.surahName} ({student.currentMemorization.fromAyah}-{student.currentMemorization.toAyah})
+                              📖 لا يوجد منهج مرتبط بالطالب
                             </Typography>
                           </Box>
                         </Box>

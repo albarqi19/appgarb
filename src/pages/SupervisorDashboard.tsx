@@ -616,9 +616,8 @@ const SupervisorDashboard: React.FC = () => {
   // تحديث الحلقات الفرعية عند تغيير الطالب المحدد
   useEffect(() => {
     if (transferType === 'circle' && selectedStudent) {
+      setTargetCircle(''); // إعادة تعيين الحلقة المختارة
       fetchSubCircles(selectedStudent);
-      // جلب الحلقات الفرعية من API المدرسة القرآنية أيضاً
-      fetchQuranSchoolInfo(supervisorId);
     }
   }, [selectedStudent, transferType]);
 
@@ -1247,16 +1246,34 @@ const SupervisorDashboard: React.FC = () => {
                             </Box>
                           </TableCell>                          <TableCell>
                             <Typography variant="body2">
-                              {student.circle && student.circle.teacher ? student.circle.teacher.name : 'غير محدد'}
+                              {student.circle?.teacher?.name || 'غير محدد'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <IconButton 
-                              size="small"
-                              onClick={() => navigate(`/student-details/${student.id}`)}
-                            >
-                              <EditIcon />
-                            </IconButton>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<SwapHorizIcon />}
+                                onClick={() => {
+                                  setSelectedStudent(student.id.toString());
+                                  setTransferType('circle'); // تعيين النوع الافتراضي
+                                  setTargetCircle('');
+                                  setTargetMosque('');
+                                  setTransferReason('');
+                                  setTransferDialogOpen(true);
+                                }}
+                              >
+                                نقل
+                              </Button>
+                              <IconButton 
+                                size="small"
+                                onClick={() => navigate(`/student-details/${student.id}`)}
+                                title="تفاصيل الطالب"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1685,16 +1702,27 @@ const SupervisorDashboard: React.FC = () => {
                     value={targetCircle}
                     onChange={(e) => setTargetCircle(e.target.value)}
                     label="الحلقة الفرعية الجديدة"
-                    disabled={!selectedStudent}
+                    disabled={!selectedStudent || loadingSubCircles}
                   >
-                    {selectedStudent ? (
-                      circleGroups.length > 0 ? (
-                        circleGroups.map((group) => (
-                          <MenuItem key={group.id} value={group.id}>
-                            {group.name} - المعلم: {group.teacher?.name || 'غير محدد'} 
-                            ({group.students_count} طالب)
-                          </MenuItem>
-                        ))
+                    {loadingSubCircles ? (
+                      <MenuItem disabled>
+                        جارٍ تحميل الحلقات الفرعية...
+                      </MenuItem>
+                    ) : selectedStudent ? (
+                      subCircles.length > 0 ? (
+                        subCircles.map((subCircle) => {
+                          // حساب عدد الطلاب في هذه الحلقة الفرعية
+                          const studentsInSubCircle = supervisorStudents.filter(s => 
+                            s.group?.id === subCircle.sub_circle_id
+                          ).length;
+                          
+                          return (
+                            <MenuItem key={subCircle.sub_circle_id} value={subCircle.sub_circle_id}>
+                              {subCircle.sub_circle_name} - المعلم: {subCircle.teacher?.teacher_name || 'غير محدد'} 
+                              ({studentsInSubCircle} طالب)
+                            </MenuItem>
+                          );
+                        })
                       ) : (
                         <MenuItem disabled>
                           لا توجد حلقات فرعية متاحة

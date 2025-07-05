@@ -24,9 +24,16 @@ export interface AttendanceSubmission {
   notes?: string;       // ملاحظات اختيارية
 }
 
-// واجهة إرسال التحضير المتعدد
+// واجهة إرسال التحضير المتعدد - محدثة للرابط الجديد
 export interface BulkAttendanceSubmission {
-  students: AttendanceSubmission[];
+  teacherId: number;
+  date: string;
+  time: string;
+  students: {
+    studentId: number;
+    status: string;
+    notes?: string;
+  }[];
 }
 
 // واجهة استجابة سجلات الحضور
@@ -37,13 +44,13 @@ export interface AttendanceResponse {
   errors?: any;
 }
 
-// تحويل حالة الحضور من العربية إلى الإنجليزية (للإرسال للخادم)
+// تحويل حالة الحضور من العربية إلى الإنجليزية (للإرسال للخادم في API المفرد فقط)
 export const convertStatusToEnglish = (arabicStatus: AttendanceStatus): 'present' | 'absent' | 'late' | 'excused' => {
   switch (arabicStatus) {
     case 'حاضر': return 'present';
     case 'غائب': return 'absent';
     case 'متأخر': return 'late';
-    case 'مستأذن': return 'excused'; // الخادم يقبل "excused" بالإنجليزية
+    case 'مستأذن': return 'excused'; // الخادم يقبل "excused" بالإنجليزية للAPI المفرد
     default: return 'present';
   }
 };
@@ -183,29 +190,39 @@ export const updateStudentAttendance = async (
 
 // إرسال التحضير المتعدد للطلاب بطريقة محسّنة (إرسال واحد)
 export const recordBulkAttendanceFast = async (
-  students: { name: string; status: AttendanceStatus; notes?: string }[],
-  period: string = 'العصر'
+  students: { name: string; status: AttendanceStatus; notes?: string; studentId?: number }[],
+  period: string = 'العصر',
+  teacherId?: number
 ): Promise<{ success: boolean; results: any[] }> => {
   try {
     const date = getTodayDate();
+    const currentTime = new Date().toLocaleTimeString('ar-SA', { hour12: false, timeZone: 'Asia/Riyadh' });
     console.log('🚀 إرسال تحضير جماعي محسّن لـ', students.length, 'طالب في طلب واحد');
 
-    // تحضير البيانات للإرسال الجماعي
+    // التحقق من وجود teacherId
+    if (!teacherId) {
+      console.warn('⚠️ معرف المعلم مطلوب للإرسال الجماعي');
+      // التراجع للطريقة المتتالية
+      return await recordBulkAttendanceSequential(students, period);
+    }
+
+    // تحضير البيانات للإرسال الجماعي بالتركيب الصحيح
     const bulkData: BulkAttendanceSubmission = {
-      students: students.map(student => ({
-        student_name: student.name,
-        date: date,
-        status: convertStatusToEnglish(student.status),
-        period: period,
-        notes: student.notes || `تحضير ${student.status}`
+      teacherId: teacherId,
+      date: date,
+      time: currentTime,
+      students: students.map((student, index) => ({
+        studentId: student.studentId || (index + 1), // استخدام studentId أو رقم تسلسلي
+        status: student.status, // إرسال بالعربية مباشرة
+        notes: student.notes || ''
       }))
     };
 
     console.log('📤 إرسال طلب جماعي واحد:', bulkData);
 
-    // محاولة إرسال جماعي أولاً
+    // محاولة إرسال جماعي أولاً بالرابط الصحيح
     try {
-      const response = await fetch(`${API_BASE_URL}/attendance/bulk`, {
+      const response = await fetch(`${API_BASE_URL}/attendance/record-batch`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify(bulkData),
@@ -309,11 +326,12 @@ export const recordBulkAttendanceSequential = async (
 
 // للتوافق مع النظام القديم - نسخة محسنة
 export const recordBulkAttendance = async (
-  students: { name: string; status: AttendanceStatus; notes?: string }[],
-  period: string = 'العصر'
+  students: { name: string; status: AttendanceStatus; notes?: string; studentId?: number }[],
+  period: string = 'العصر',
+  teacherId?: number
 ): Promise<{ success: boolean; results: any[] }> => {
   // استخدام النظام المحسن الجديد
-  return await recordBulkAttendanceFast(students, period);
+  return await recordBulkAttendanceFast(students, period, teacherId);
 };
 
 // دالة التوافق القديمة
@@ -638,14 +656,15 @@ export const recordOrUpdateAttendance = async (attendance: AttendanceSubmission)
 
 // تحديث دالة التحضير المتعدد لاستخدام النظام المحسن
 export const recordBulkAttendanceWithUpdate = async (
-  students: { name: string; status: AttendanceStatus; notes?: string }[],
-  period: string = 'العصر'
+  students: { name: string; status: AttendanceStatus; notes?: string; studentId?: number }[],
+  period: string = 'العصر',
+  teacherId?: number
 ): Promise<{ success: boolean; results: any[] }> => {
   try {
     console.log('🚀 استخدام النظام المحسن للتحضير الجماعي');
     
     // استخدام الدالة المحسنة الجديدة
-    const result = await recordBulkAttendanceFast(students, period);
+    const result = await recordBulkAttendanceFast(students, period, teacherId);
     
     // مسح التخزين المحلي لضمان جلب البيانات المحدثة
     console.log('🧹 مسح التخزين المحلي لضمان جلب البيانات المحدثة');

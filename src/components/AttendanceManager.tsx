@@ -144,14 +144,19 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         return {
           name: student?.name || `طالب ${state.studentId}`,
           status: state.status,
-          notes: state.notes || ''
+          notes: state.notes || '',
+          studentId: parseInt(state.studentId) // إضافة معرف الطالب
         };
       });
 
       console.log('البيانات المُجهزة للإرسال:', studentsToSubmit);
 
-      // استخدام النظام الجديد للتحديث الذكي بدلاً من الإضافة المكررة
-      const result = await recordBulkAttendanceWithUpdate(studentsToSubmit, 'العصر');
+      // استخدام النظام الجديد للتحديث الذكي مع تمرير معرف المعلم
+      const result = await recordBulkAttendanceWithUpdate(
+        studentsToSubmit, 
+        'العصر', 
+        parseInt(teacherId) // تمرير معرف المعلم للإرسال الجماعي
+      );
       
       if (result.success) {
         setSubmitSuccess(true);

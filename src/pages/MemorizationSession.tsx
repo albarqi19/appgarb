@@ -51,6 +51,7 @@ import NotesIcon from '@mui/icons-material/Notes';
 import StopIcon from '@mui/icons-material/Stop';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import HighlightIcon from '@mui/icons-material/Highlight';
+
 import { surahs, ayahs } from '../data/quran';
 import { 
   uthmaniSurahs, 
@@ -94,13 +95,15 @@ const MemorizationSession: React.FC = () => {
   const [toAyah, setToAyah] = useState(selectedStudent?.currentMemorization.toAyah || 5);  const [errors, setErrors] = useState<MemorizationError[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [selectedWord, setSelectedWord] = useState<{word: string, index: number, ayahIndex: number}>({word: '', index: 0, ayahIndex: 0});
+  const [selectedWord, setSelectedWord] = useState<{word: string, index: number, ayahIndex: number, surahId: number}>({word: '', index: 0, ayahIndex: 0, surahId: 0});
   const [selectedErrorType, setSelectedErrorType] = useState<'حفظ' | 'تجويد' | 'نطق'>('حفظ');  const [finalScore, setFinalScore] = useState(100);
   const [showScoreDialog, setShowScoreDialog] = useState(false);
   const [sessionTime, setSessionTime] = useState(0);const [sessionTimer, setSessionTimer] = useState<NodeJS.Timer | null>(null);
   const [notes, setNotes] = useState('');
   const [showErrorSummary, setShowErrorSummary] = useState(false);
-  const [isPageReady, setIsPageReady] = useState(false);  // ✅ إضافة متغيرات الحالة الجديدة للـ API
+  const [isPageReady, setIsPageReady] = useState(false);
+  // إضافة الدرجة المقترحة من 10
+  const [suggestedGrade, setSuggestedGrade] = useState<string | number>(8);  // ✅ إضافة متغيرات الحالة الجديدة للـ API
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isSendingErrors, setIsSendingErrors] = useState(false);
@@ -123,9 +126,71 @@ const MemorizationSession: React.FC = () => {
     }
 
     // تحميل السورة المناسبة بالرسم العثماني
-    const surah = uthmaniSurahs.find(s => s.arabicName === selectedStudent.currentMemorization.surahName);
+    const curriculum = selectedStudent.currentMemorization;
+    let surah;
+    let allRequiredAyahs: any[] = [];
+    
+    if (curriculum.isMultipleSurahs && curriculum.startSurah && curriculum.endSurah) {
+      // التعامل مع السور المتعددة
+      console.log('📚 منهج متعدد السور:', curriculum.startSurah, 'إلى', curriculum.endSurah);
+      
+      const startSurah = uthmaniSurahs.find(s => s.arabicName === curriculum.startSurah);
+      const endSurah = uthmaniSurahs.find(s => s.arabicName === curriculum.endSurah);
+      
+      if (!startSurah || !endSurah) {
+        console.error('لم يتم العثور على إحدى السور:', curriculum.startSurah, curriculum.endSurah);
+        navigate('/memorization-options');
+        return;
+      }
+      
+      // استخدام السورة الأولى كالسورة الحالية للعرض
+      surah = startSurah;
+      
+      // جمع الآيات من جميع السور المطلوبة
+      if (startSurah.id === endSurah.id) {
+        // نفس السورة
+        const allAyahs = getAyahsBySurahId(startSurah.id);
+        allRequiredAyahs = allAyahs.filter(ayah => 
+          ayah.number >= curriculum.fromAyah && 
+          ayah.number <= curriculum.toAyah
+        );
+      } else {
+        // سور متعددة
+        for (let surahId = startSurah.id; surahId <= endSurah.id; surahId++) {
+          const currentSurahAyahs = getAyahsBySurahId(surahId);
+          const surahInfo = uthmaniSurahs.find(s => s.id === surahId);
+          
+          if (surahId === startSurah.id) {
+            // السورة الأولى - من الآية المحددة إلى النهاية
+            allRequiredAyahs.push(...currentSurahAyahs.filter(ayah => ayah.number >= curriculum.fromAyah));
+          } else if (surahId === endSurah.id) {
+            // السورة الأخيرة - من البداية إلى الآية المحددة
+            allRequiredAyahs.push(...currentSurahAyahs.filter(ayah => ayah.number <= curriculum.toAyah));
+          } else {
+            // السور الوسطى - كاملة
+            allRequiredAyahs.push(...currentSurahAyahs);
+          }
+        }
+      }
+    } else {
+      // التعامل مع سورة واحدة (الطريقة القديمة)
+      surah = uthmaniSurahs.find(s => s.arabicName === curriculum.surahName);
+      if (!surah) {
+        console.error('لم يتم العثور على السورة:', curriculum.surahName);
+        navigate('/memorization-options');
+        return;
+      }
+      
+      // تحميل الآيات المطلوبة بالرسم العثماني
+      const allAyahs = getAyahsBySurahId(surah.id);
+      allRequiredAyahs = allAyahs.filter(ayah => 
+        ayah.number >= curriculum.fromAyah && 
+        ayah.number <= curriculum.toAyah
+      );
+    }
+    
     if (!surah) {
-      console.error('لم يتم العثور على السورة:', selectedStudent.currentMemorization.surahName);
+      console.error('فشل في تحديد السورة');
       navigate('/memorization-options');
       return;
     }
@@ -133,21 +198,14 @@ const MemorizationSession: React.FC = () => {
     console.log('تم العثور على السورة:', surah.arabicName);
     setCurrentSurah(surah);
     
-    // تحميل الآيات المطلوبة بالرسم العثماني
-    const allAyahs = getAyahsBySurahId(surah.id);
-    const requiredAyahs = allAyahs.filter(ayah => 
-      ayah.number >= selectedStudent.currentMemorization.fromAyah && 
-      ayah.number <= selectedStudent.currentMemorization.toAyah
-    );
-    
-    if (requiredAyahs.length === 0) {
+    if (allRequiredAyahs.length === 0) {
       console.error('لم يتم العثور على آيات للنطاق المحدد');
       navigate('/memorization-options');
       return;
     }
     
-    console.log('تم تحميل الآيات:', requiredAyahs.length);
-    setCurrentAyahs(requiredAyahs);
+    console.log('تم تحميل الآيات:', allRequiredAyahs.length, 'آيات من', curriculum.isMultipleSurahs ? 'سور متعددة' : 'سورة واحدة');
+    setCurrentAyahs(allRequiredAyahs);
     setFromAyah(selectedStudent.currentMemorization.fromAyah);
     setToAyah(selectedStudent.currentMemorization.toAyah);
     
@@ -200,23 +258,44 @@ const MemorizationSession: React.FC = () => {
     setApiError(null);
     
     try {      // إعداد بيانات الجلسة الجديدة
+      const curriculum = selectedStudent.currentMemorization;
+      let startSurahNumber, endSurahNumber, startVerse, endVerse;
+      
+      if (curriculum.isMultipleSurahs && curriculum.startSurahNumber && curriculum.endSurahNumber) {
+        // سور متعددة
+        startSurahNumber = curriculum.startSurahNumber;
+        endSurahNumber = curriculum.endSurahNumber;
+        startVerse = curriculum.fromAyah;
+        endVerse = curriculum.toAyah;
+        console.log('📚 إنشاء جلسة لسور متعددة:', startSurahNumber, 'إلى', endSurahNumber);
+      } else {
+        // سورة واحدة
+        startSurahNumber = currentSurah.id;
+        endSurahNumber = currentSurah.id;
+        startVerse = fromAyah;
+        endVerse = toAyah;
+        console.log('📖 إنشاء جلسة لسورة واحدة:', currentSurah.arabicName);
+      }
+      
       const sessionData: CreateSessionData = {
         student_id: parseInt(selectedStudent.id),
         teacher_id: parseInt(user?.id || '1'), // استخدام معرف المعلم الحقيقي من السياق
         quran_circle_id: 1, // TODO: استخدام معرف الحلقة الحقيقي
-        start_surah_number: currentSurah.id,
-        start_verse: fromAyah,
-        end_surah_number: currentSurah.id,
-        end_verse: toAyah,
+        start_surah_number: startSurahNumber,
+        start_verse: startVerse,
+        end_surah_number: endSurahNumber,
+        end_verse: endVerse,
         recitation_type: memorizationMode || 'حفظ',
-        duration_minutes: 30, // ✅ مدة مقدرة للجلسة (سيتم تحديثها عند الانتهاء)
+        duration_minutes: 1, // ✅ بدء الجلسة بمدة 1 دقيقة (رقم صحيح يلبي متطلبات الـ API)
         grade: 8.5, // ✅ استخدام درجة من النطاق المسموح (0-10)
         evaluation: 'جيد جداً', // ✅ استخدام تقييم من القيم المُختبرة
-        teacher_notes: 'جلسة جديدة - بدء التسميع'
+        teacher_notes: curriculum.isMultipleSurahs 
+          ? `جلسة جديدة - بدء التسميع للنطاق: ${curriculum.surahName}`
+          : 'جلسة جديدة - بدء التسميع'
       };
       
       console.log('🚀 إنشاء جلسة تسميع جديدة...', sessionData);
-      console.log('⏱️ المدة المقدرة: 30 دقيقة (ستُحدث بالوقت الفعلي عند الانتهاء)');
+      console.log('⏱️ بدء الجلسة بمدة 1 دقيقة (ستُحدث بالوقت الفعلي عند الانتهاء)');
       
       // استدعاء API لإنشاء الجلسة
       const response = await createRecitationSession(sessionData);
@@ -242,10 +321,10 @@ const MemorizationSession: React.FC = () => {
     }
   };
   // معالجة اختيار كلمة للإشارة لوجود خطأ
-  const handleWordClick = (event: React.MouseEvent<HTMLElement>, word: string, wordIndex: number, ayahIndex: number) => {
+  const handleWordClick = (event: React.MouseEvent<HTMLElement>, word: string, wordIndex: number, ayahIndex: number, surahId: number) => {
     if (!isSessionStarted) return;
     
-    setSelectedWord({ word, index: wordIndex, ayahIndex });
+    setSelectedWord({ word, index: wordIndex, ayahIndex, surahId });
     setAnchorEl(event.currentTarget);
     setIsDialogOpen(true);
   };
@@ -255,7 +334,8 @@ const MemorizationSession: React.FC = () => {
       type: selectedErrorType,
       wordIndex: selectedWord.index,
       word: selectedWord.word,
-      ayahIndex: selectedWord.ayahIndex
+      ayahIndex: selectedWord.ayahIndex,
+      surahId: selectedWord.surahId
     };
     
     setErrors([...errors, newError]);
@@ -291,7 +371,8 @@ const MemorizationSession: React.FC = () => {
       type: errorType,
       wordIndex: selectedWord.index,
       word: selectedWord.word,
-      ayahIndex: selectedWord.ayahIndex
+      ayahIndex: selectedWord.ayahIndex,
+      surahId: selectedWord.surahId
     };
     
     // إضافة الخطأ محلياً فوراً
@@ -321,7 +402,7 @@ const MemorizationSession: React.FC = () => {
     setIsSendingErrors(true);
     try {
       const apiError: RecitationError = {
-        surah_number: currentSurah.id,
+        surah_number: selectedWord.surahId,
         verse_number: selectedWord.ayahIndex,
         word_text: selectedWord.word,
         error_type: errorType,
@@ -337,6 +418,7 @@ const MemorizationSession: React.FC = () => {
       };
       
       console.log('🚀 إرسال خطأ للـ API...', errorsData);
+      console.log('📖 السورة:', selectedWord.surahId, 'الآية:', selectedWord.ayahIndex, 'الكلمة:', selectedWord.word);
       
       const response = await addRecitationErrors(errorsData);
       
@@ -357,6 +439,9 @@ const MemorizationSession: React.FC = () => {
   // إنهاء جلسة التسميع
   const handleFinishSession = () => {
     setIsSessionStarted(false);
+    // حساب الدرجة المقترحة من 10 بناءً على النسبة المئوية
+    const calculatedGrade = Math.max(0, Math.round((finalScore / 100) * 10));
+    setSuggestedGrade(calculatedGrade);
     setShowScoreDialog(true);
   };// حفظ النتائج والعودة لصفحة الطلاب
   const handleSaveResults = async () => {
@@ -370,11 +455,13 @@ const MemorizationSession: React.FC = () => {
     
     setIsSavingResults(true);
     
-    try {      // تحويل الدرجة من نطاق 0-100 إلى نطاق 0-10 لتوافق قاعدة البيانات
-      const gradeForAPI = Math.max(0, Math.round((finalScore / 100) * 10));      // حساب مدة الجلسة بالدقائق (تحويل من ثواني إلى دقائق)
-      const durationMinutes = Math.round(sessionTime / 60 * 100) / 100; // Round to 2 decimal places
+    try {      // استخدام الدرجة المقترحة التي يمكن تعديلها من قبل المعلم
+      const gradeForAPI = Math.max(0, Math.min(10, typeof suggestedGrade === 'string' ? parseFloat(suggestedGrade) || 0 : suggestedGrade));      // حساب مدة الجلسة بالدقائق (تحويل من ثواني إلى دقائق) مع ضمان حد أدنى
+      const calculatedDurationMinutes = Math.round(sessionTime / 60 * 100) / 100;
+      const durationMinutes = Math.max(0.01, calculatedDurationMinutes); // ✅ ضمان حد أدنى 0.01 دقيقة لتوافق متطلبات الـ API
       console.log('🕐 Duration calculation:', {
         sessionTime,
+        calculatedDurationMinutes,
         durationMinutes,
         sessionTimeMinutes: sessionTime / 60
       });
@@ -488,24 +575,26 @@ const MemorizationSession: React.FC = () => {
     <Box 
       sx={{
         minHeight: '100vh',
-        pt: 10,
-        pb: 5,
+        pt: isMobile ? 2 : 10,
+        pb: isMobile ? 3 : 5,
         background: theme.palette.mode === 'light' 
           ? 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(255,255,255,1) 100%)'
           : 'linear-gradient(180deg, rgba(10,25,47,1) 0%, rgba(17,34,64,1) 100%)'
       }}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth={isMobile ? "sm" : "lg"}>
         {/* رأس الصفحة */}
         <Paper
           elevation={0}
           sx={{
-            p: 3, 
-            mb: 4, 
+            p: isMobile ? 2 : 3, 
+            mb: isMobile ? 2 : 4, 
             borderRadius: 3,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? 2 : 0,
             boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
             background: theme.palette.mode === 'light' 
               ? 'linear-gradient(135deg, #1e6f8e 0%, #134b60 100%)'
@@ -526,7 +615,13 @@ const MemorizationSession: React.FC = () => {
             </svg>
           </Box>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            zIndex: 1,
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'space-between' : 'flex-start'
+          }}>
             <IconButton 
               onClick={() => navigate('/memorization-options')} 
               sx={{ 
@@ -540,25 +635,46 @@ const MemorizationSession: React.FC = () => {
             >
               <ArrowBackIcon />
             </IconButton>
-            <Box>
-              <Typography variant="h5" component="h1" fontWeight="bold">
-                جلسة {memorizationMode}
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                variant={isMobile ? "h6" : "h5"} 
+                component="h1" 
+                fontWeight="bold"
+              >
+                {isMobile ? selectedStudent.name : `جلسة ${memorizationMode}`}
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.8, mt: 0.5 }}>
-                سورة {currentSurah.arabicName} - الآيات ({fromAyah} - {toAyah})
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  opacity: 0.8, 
+                  mt: 0.5,
+                  fontSize: isMobile ? '0.75rem' : '0.875rem'
+                }}
+              >
+                {isMobile 
+                  ? `${memorizationMode} - ${currentSurah.arabicName} (${fromAyah}-${toAyah})`
+                  : `سورة ${currentSurah.arabicName} - الآيات (${fromAyah} - ${toAyah})`
+                }
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            zIndex: 1,
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'space-between' : 'flex-end'
+          }}>
             <Chip 
               icon={<TimerIcon />} 
               label={formatTime(sessionTime)}
               sx={{ 
                 color: 'white', 
                 bgcolor: 'rgba(255,255,255,0.15)',
-                mr: 2,
-                border: 'none'
+                mr: isMobile ? 1 : 2,
+                border: 'none',
+                fontSize: isMobile ? '0.75rem' : '0.875rem'
               }} 
             />            <Button
               variant="contained"
@@ -566,6 +682,7 @@ const MemorizationSession: React.FC = () => {
               startIcon={isSessionStarted ? <PauseIcon /> : (isCreatingSession ? <CircularProgress size={20} color="inherit" /> : <PlayArrowIcon />)}
               onClick={isSessionStarted ? handleFinishSession : handleStartSession}
               disabled={isCreatingSession}
+              size={isMobile ? "small" : "medium"}
               sx={{ 
                 px: 3,
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -600,9 +717,10 @@ const MemorizationSession: React.FC = () => {
         )}
         
         <Grid container spacing={3}>
-          {/* معلومات الطالب */}
-          <Grid item xs={12} md={3}>
-            <Stack spacing={3}>
+          {/* معلومات الطالب - مخفي في الجوال */}
+          {!isMobile && (
+            <Grid item xs={12} md={3}>
+              <Stack spacing={3}>
               <Paper 
                 elevation={0} 
                 sx={{ 
@@ -779,7 +897,7 @@ const MemorizationSession: React.FC = () => {
                               }} 
                             />
                             <Typography variant="caption" noWrap>
-                              "{error.word}" - الآية: {error.ayahIndex}
+                              "{error.word}" - {getSurahById(error.surahId)?.arabicName || 'سورة غير معروفة'} آية: {error.ayahIndex}
                             </Typography>
                           </Box>
                         ))}
@@ -789,9 +907,10 @@ const MemorizationSession: React.FC = () => {
                 )}              </Paper>
             </Stack>
           </Grid>
+          )}
 
           {/* محتوى التسميع */}
-          <Grid item xs={12} md={9}>
+          <Grid item xs={12} md={isMobile ? 12 : 9}>
             <Paper 
               elevation={0} 
               sx={{ 
@@ -960,18 +1079,18 @@ const MemorizationSession: React.FC = () => {
                         }
                       }}
                     >{currentAyahs.map((ayah, ayahIndex) => (
-                        <Box key={ayah.number} component="span" sx={{ display: 'inline' }}>
+                        <Box key={`surah-${ayah.surahId}-ayah-${ayah.number}`} component="span" sx={{ display: 'inline' }}>
                           {/* كلمات الآية */}
                           {ayah.words.map((wordObj, wordIndex) => (
                             <Tooltip 
-                              key={`${ayah.number}-${wordIndex}`} 
+                              key={`surah-${ayah.surahId}-ayah-${ayah.number}-word-${wordIndex}`} 
                               title={isSessionStarted ? `انقر لتحديد خطأ - ${wordObj.transliteration || ''}` : wordObj.transliteration || ""}
                               arrow
                               placement="top"
                             >
                               <Box
                                 component="span"
-                                onClick={(e) => handleWordClick(e, wordObj.text, wordIndex, ayah.number)}
+                                onClick={(e) => handleWordClick(e, wordObj.text, wordIndex, ayah.number, ayah.surahId)}
                                 className="uthmani-word"
                                 sx={{ 
                                   color: getWordColor(wordObj.text, wordIndex, ayah.number),
@@ -1171,7 +1290,8 @@ const MemorizationSession: React.FC = () => {
         </Paper>
       </Popover>
 
-      {/* نافذة النتيجة النهائية */}      <Dialog 
+      {/* نافذة النتيجة النهائية - محسنة للجوال */}
+      <Dialog 
         open={showScoreDialog} 
         onClose={() => setShowScoreDialog(false)}
         maxWidth="md"
@@ -1179,249 +1299,347 @@ const MemorizationSession: React.FC = () => {
         fullScreen={isMobile}
         PaperProps={{
           sx: {
-            borderRadius: 3,
+            borderRadius: isMobile ? 0 : 3,
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            m: isMobile ? 0 : 2
           }
         }}
       >
-        <Box sx={{ position: 'relative' }}>
-          <Box 
-            sx={{ 
-              bgcolor: 'primary.main', 
-              color: 'white',
-              py: 3,
-              px: 4,
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                opacity: 0.1,
-                backgroundImage: 'url(/assets/quran-pattern.svg)',
-                backgroundSize: 'cover'
-              }}
-            />
-            <Box sx={{ position: 'relative', zIndex: 1 }}>
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                نتائج جلسة التسميع
-              </Typography>
+        {/* رأس مبسط للجوال */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          p: isMobile ? 2 : 3,
+          bgcolor: 'primary.main',
+          color: 'white'
+        }}>
+          <Box>
+            <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold">
+              نتائج التسميع
+            </Typography>
+            {!isMobile && (
               <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                تم الانتهاء من جلسة {memorizationMode} لسورة {currentSurah.arabicName}
+                {memorizationMode} • {currentSurah.arabicName}
               </Typography>
-            </Box>
+            )}
           </Box>
-        </Box>        <DialogContent sx={{ py: 4 }}>
-          <Grid container spacing={4}>
-            <Grid item xs={12}>
-              <Card 
-                variant="outlined" 
+        </Box>        {/* المحتوى المحسن والمضغوط */}
+        <DialogContent sx={{ p: isMobile ? 2 : 4, pb: isMobile ? 1 : 3 }}>
+          {/* الدرجة النهائية - في المقدمة */}
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              الدرجة النهائية
+            </Typography>
+            <Box sx={{ position: 'relative', display: 'inline-block' }}>
+              <CircularProgress
+                variant="determinate"
+                value={finalScore}
+                size={isMobile ? 100 : 120}
+                thickness={6}
                 sx={{ 
-                  height: '100%',
-                  borderRadius: 3,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                  overflow: 'hidden'
+                  color: finalScore >= 90 ? 'success.main' : 
+                        finalScore >= 70 ? 'primary.main' : 'warning.main'
+                }}
+              />
+              <Box
+                sx={{
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  right: 0,
+                  position: 'absolute',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <Box
-                  sx={{
-                    p: 3,
-                    bgcolor: 'background.default',
-                    borderBottom: '1px solid',
-                    borderColor: 'divider'
-                  }}
+                <Typography
+                  variant={isMobile ? "h5" : "h4"}
+                  component="div"
+                  fontWeight="bold"
+                  color={
+                    finalScore >= 90 ? 'success.main' : 
+                    finalScore >= 70 ? 'primary.main' : 'warning.main'
+                  }
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <MenuBookIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6" fontWeight="medium">
-                      معلومات الجلسة
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                <CardContent>
-                  <Box sx={{ my: 2 }}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          الطالب
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {selectedStudent.name}
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          المستوى
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {selectedStudent.level}
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          السورة
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {currentSurah.arabicName}
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          الآيات
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {fromAyah} - {toAyah}
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          نوع الجلسة
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {memorizationMode}
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          مدة الجلسة
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {formatTime(sessionTime)}                      </Typography>
-                      </Grid>
-                    </Grid>
-                    
-                    <Divider sx={{ my: 3 }} />
-                    
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        ملخص الأخطاء:
-                      </Typography>
-                      <Grid container spacing={2} sx={{ mb: 2 }}>
-                        {errorTypes.map(type => (
-                          <Grid item xs={4} key={type.id}>
-                            <Box 
-                              sx={{ 
-                                p: 1.5, 
-                                textAlign: 'center', 
-                                borderRadius: 2,
-                                bgcolor: `${type.color}.light`, 
-                                color: `${type.color}.dark`
-                              }}
-                            >
-                              <Typography variant="body2" fontWeight="medium">
-                                {type.label}
-                              </Typography>
-                              <Typography variant="h5">
-                                {getErrorSummary(type.id)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        ))}
-                      </Grid>                    </Box>
-                    
-                    <Divider sx={{ my: 3 }} />
-                    
-                    {/* ملاحظات المعلم */}
-                    <Box sx={{ mt: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <NotesIcon sx={{ mr: 1, fontSize: 20 }} color="primary" />
-                        <Typography variant="subtitle1" fontWeight="medium">
-                          ملاحظات المعلم
-                        </Typography>
-                      </Box>
-                      <TextField
-                        multiline
-                        rows={3}
-                        fullWidth
-                        placeholder="أضف ملاحظاتك على أداء الطالب هنا..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            fontSize: '0.9rem'
-                          }
-                        }}
-                      />
-                    </Box>
-                    
-                    <Divider sx={{ my: 3 }} />
-                    
-                    <Box sx={{ textAlign: 'center', mt: 4 }}>
-                      <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                        الدرجة النهائية
-                      </Typography>
-                      <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                        <CircularProgress
-                          variant="determinate"
-                          value={finalScore}
-                          size={120}
-                          thickness={5}
-                          sx={{ 
-                            color: finalScore >= 90 ? 'success.main' : 
-                                  finalScore >= 70 ? 'primary.main' : 'warning.main',
-                            stroke: 'rgba(0,0,0,0.05)'
-                          }}
-                        />
-                        <Box
-                          sx={{
-                            top: 0,
-                            left: 0,
-                            bottom: 0,
-                            right: 0,
-                            position: 'absolute',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Typography
-                            variant="h4"
-                            component="div"
-                            fontWeight="bold"
-                            color={
-                              finalScore >= 90 ? 'success.main' : 
-                              finalScore >= 70 ? 'primary.main' : 'warning.main'
-                            }
-                          >
-                            {finalScore}%
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Box>
-                </CardContent>              </Card>
+                  {finalScore}%
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* معلومات سريعة في صف واحد */}
+          <Grid container spacing={1} sx={{ mb: 3 }}>
+            <Grid item xs={6}>
+              <Paper elevation={0} sx={{ 
+                p: 1.5, 
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.800', 
+                borderRadius: 2, 
+                textAlign: 'center' 
+              }}>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  الطالب
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {selectedStudent.name}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6}>
+              <Paper elevation={0} sx={{ 
+                p: 1.5, 
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.800', 
+                borderRadius: 2, 
+                textAlign: 'center' 
+              }}>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  المدة
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {formatTime(sessionTime)}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6}>
+              <Paper elevation={0} sx={{ 
+                p: 1.5, 
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.800', 
+                borderRadius: 2, 
+                textAlign: 'center' 
+              }}>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  السورة
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {currentSurah.arabicName}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6}>
+              <Paper elevation={0} sx={{ 
+                p: 1.5, 
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.800', 
+                borderRadius: 2, 
+                textAlign: 'center' 
+              }}>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  الآيات
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {fromAyah} - {toAyah}
+                </Typography>
+              </Paper>
             </Grid>
           </Grid>
+
+          {/* ملخص الأخطاء مضغوط */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mb: 1 }}>
+              ملخص الأخطاء ({errors.length})
+            </Typography>
+            <Grid container spacing={1}>
+              {errorTypes.map(type => (
+                <Grid item xs={4} key={type.id}>
+                  <Paper 
+                    elevation={0}
+                    sx={{ 
+                      p: 1, 
+                      textAlign: 'center', 
+                      borderRadius: 2,
+                      bgcolor: theme.palette.mode === 'light' ? `${type.color}.light` : `${type.color}.dark`,
+                      border: '1px solid',
+                      borderColor: `${type.color}.main`
+                    }}
+                  >
+                    <Typography 
+                      variant="caption" 
+                      color={theme.palette.mode === 'light' ? `${type.color}.dark` : `${type.color}.light`} 
+                      fontWeight="medium" 
+                      display="block"
+                    >
+                      {type.label}
+                    </Typography>
+                    <Typography 
+                      variant="h6" 
+                      color={theme.palette.mode === 'light' ? `${type.color}.dark` : `${type.color}.light`} 
+                      fontWeight="bold"
+                    >
+                      {getErrorSummary(type.id)}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+
+          {/* ملاحظات المعلم مبسطة */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mb: 1 }}>
+              ملاحظات المعلم
+            </Typography>
+            <TextField
+              multiline
+              rows={isMobile ? 2 : 3}
+              fullWidth
+              placeholder="أضف ملاحظاتك هنا..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              variant="outlined"
+              size="small"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  fontSize: '0.875rem',
+                  bgcolor: 'background.paper'
+                }
+              }}
+            />
+          </Box>
         </DialogContent>
         
-        <DialogActions sx={{ px: 3, pb: 3 }}>          <Button 
+        {/* منطقة الإجراءات المحسنة */}
+        <DialogActions sx={{ 
+          p: isMobile ? 2 : 3, 
+          pt: isMobile ? 1 : 2,
+          flexDirection: 'column', 
+          gap: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: isMobile ? (theme.palette.mode === 'light' ? 'grey.50' : 'grey.800') : 'transparent'
+        }}>
+          {/* الدرجة المقترحة - مربع مميز */}
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 2,
+              width: '100%',
+              bgcolor: theme.palette.mode === 'light' ? 'primary.light' : 'primary.dark',
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'primary.main'
+            }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 1
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <GradeIcon sx={{ 
+                  color: theme.palette.mode === 'light' ? 'primary.main' : 'primary.light', 
+                  fontSize: 20 
+                }} />
+                <Typography 
+                  variant="body2" 
+                  color={theme.palette.mode === 'light' ? 'primary.dark' : 'primary.light'}
+                  fontWeight="medium"
+                  sx={{ fontSize: isMobile ? '0.875rem' : '0.9rem' }}
+                >
+                  يقترح النظام درجة:
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TextField
+                  type="number"
+                  value={suggestedGrade}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setSuggestedGrade('');
+                    } else {
+                      const numValue = parseFloat(value);
+                      if (!isNaN(numValue)) {
+                        setSuggestedGrade(Math.max(0, Math.min(10, numValue)));
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // التأكد من وجود قيمة صالحة عند ترك الحقل
+                    if (e.target.value === '' || isNaN(parseFloat(e.target.value))) {
+                      setSuggestedGrade(Math.round((finalScore / 10) * 2) / 2);
+                    }
+                  }}
+                  inputProps={{ 
+                    min: 0, 
+                    max: 10,
+                    step: 0.5,
+                    inputMode: 'decimal'
+                  }}
+                  size="small"
+                  sx={{ 
+                    width: 70,
+                    '& .MuiOutlinedInput-root': {
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      bgcolor: theme.palette.mode === 'light' ? 'white' : 'background.paper',
+                      borderRadius: 1.5,
+                      '& input': {
+                        textAlign: 'center',
+                        py: 0.5
+                      }
+                    }
+                  }}
+                />
+                <Typography 
+                  variant="body2" 
+                  color={theme.palette.mode === 'light' ? 'primary.dark' : 'primary.light'}
+                  fontWeight="medium"
+                  sx={{ fontSize: isMobile ? '0.875rem' : '0.9rem' }}
+                >
+                  / 10
+                </Typography>
+              </Box>
+            </Box>
+            
+            {isMobile && (
+              <Typography 
+                variant="caption" 
+                color={theme.palette.mode === 'light' ? 'primary.dark' : 'primary.light'}
+                sx={{ 
+                  display: 'block',
+                  textAlign: 'center',
+                  mt: 1,
+                  fontSize: '0.7rem',
+                  opacity: 0.8
+                }}
+              >
+                يمكنك تعديل الدرجة حسب تقديرك
+              </Typography>
+            )}
+          </Paper>
+          
+          {/* زر الحفظ */}
+          <Button 
             onClick={handleSaveResults} 
             variant="contained" 
             color="primary"
+            size="large"
             startIcon={isSavingResults ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
             disabled={isSavingResults}
             sx={{ 
-              px: 4,
-              py: 1
+              width: '100%',
+              py: isMobile ? 1.5 : 1.2,
+              borderRadius: 2,
+              fontWeight: 'bold',
+              fontSize: isMobile ? '1rem' : '0.95rem',
+              boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+              '&:hover': {
+                boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                transform: 'translateY(-1px)'
+              },
+              '&:active': {
+                transform: 'translateY(0)'
+              }
             }}
           >
             {isSavingResults ? "جاري الحفظ..." : "حفظ النتائج والعودة"}
-          </Button>        </DialogActions>
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

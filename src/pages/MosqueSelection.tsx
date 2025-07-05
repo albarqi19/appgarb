@@ -12,6 +12,7 @@ import {
   Button,
   Stack,
   useTheme,
+  useMediaQuery,
   CircularProgress,
   Divider
 } from '@mui/material';
@@ -29,6 +30,7 @@ import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 const MosqueSelection: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { setCurrentMosque, user } = useAppContext();
   // State for mosques from API
   const [apiMosques, setApiMosques] = useState<APIMosque[]>([]);
@@ -87,12 +89,12 @@ const MosqueSelection: React.FC = () => {
   };
   
   return (
-    <Container maxWidth="lg" sx={{ mt: 10, mb: 4 }}>
+    <Container maxWidth="lg" sx={{ mt: isMobile ? 4 : 10, mb: isMobile ? 2 : 4, px: isMobile ? 1 : 3 }}>
       <Paper
         elevation={3} 
         sx={{ 
-          p: 4, 
-          mb: 5, 
+          p: isMobile ? 2 : 4, 
+          mb: isMobile ? 3 : 5, 
           borderRadius: 3, 
           background: theme.palette.mode === 'light' 
             ? 'linear-gradient(120deg, #e7f5fd 0%, #d1e8fb 50%, #c0e0fb 100%)'
@@ -106,27 +108,29 @@ const MosqueSelection: React.FC = () => {
           <MosqueIcon sx={{ fontSize: 180 }} />
         </Box>
         <Typography 
-          variant="h3" 
+          variant={isMobile ? "h4" : "h3"} 
           gutterBottom 
           align="center" 
           fontWeight="bold" 
           color="primary.dark"
           sx={{ 
             textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
-            mb: 2
+            mb: isMobile ? 1.5 : 2,
+            fontSize: isMobile ? '1.8rem' : undefined
           }}        >
           اختر مدرستك القرآنية
         </Typography>
         <Typography 
-          variant="subtitle1" 
+          variant={isMobile ? "body1" : "subtitle1"} 
           align="center" 
           color="text.secondary" 
           paragraph
           sx={{ 
-            maxWidth: '600px',
+            maxWidth: isMobile ? '100%' : '600px',
             mx: 'auto', 
-            fontSize: '1.1rem',
-            fontWeight: 500
+            fontSize: isMobile ? '0.95rem' : '1.1rem',
+            fontWeight: 500,
+            px: isMobile ? 1 : 0
           }}
         >          اختر من المدارس القرآنية المُسندة إليك لإدارة طلابك ومتابعة تقدمهم في الحفظ والمراجعة
         </Typography>        {/* أزرار التنقل - مخفية مؤقتاً */}
@@ -277,7 +281,7 @@ const MosqueSelection: React.FC = () => {
           </Stack>        </Box>
       ) : (        <>
           {/* عرض البطاقات للجميع */}
-          <Grid container spacing={4}>
+          <Grid container spacing={isMobile ? 2 : 4}>
             {finalMosques.map((mosque) => (
               <Grid item xs={12} sm={6} md={4} key={mosque.id}>
                 <Card 
@@ -303,38 +307,55 @@ const MosqueSelection: React.FC = () => {
                   }} />
                     <CardActionArea 
                     onClick={() => handleMosqueSelection((mosque.id?.toString() || mosque.id)?.toString())}
-                    sx={{ flexGrow: 1, p: 2 }}
+                    sx={{ flexGrow: 1, p: isMobile ? 1.5 : 2 }}
                   >
                     <Box 
                       sx={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
                         alignItems: 'center',
-                        mb: 2,
-                        mt: 2,
+                        mb: isMobile ? 1.5 : 2,
+                        mt: isMobile ? 1.5 : 2,
                         position: 'relative'
                       }}
                     >
                       <Avatar 
                         sx={{ 
                           bgcolor: 'primary.main', 
-                          width: 90, 
-                          height: 90,
+                          width: isMobile ? 70 : 90, 
+                          height: isMobile ? 70 : 90,
                           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                           border: '4px solid rgba(255,255,255,0.9)'
                         }}
                       >
-                        <MosqueIcon sx={{ fontSize: 50 }} />
+                        <MosqueIcon sx={{ fontSize: isMobile ? 35 : 50 }} />
                       </Avatar>
                     </Box>
-                    <CardContent>                      <Typography variant="h5" component="h2" align="center" fontWeight="bold">
+                    <CardContent>                      <Typography 
+                        variant={isMobile ? "h6" : "h5"} 
+                        component="h2" 
+                        align="center" 
+                        fontWeight="bold"
+                        sx={{
+                          fontSize: isMobile ? '1.2rem' : undefined,
+                          lineHeight: isMobile ? 1.3 : undefined
+                        }}
+                      >
                         {(mosque.mosque_name && mosque.mosque_name !== 'مسجد بدون اسم') 
                           ? mosque.mosque_name 
                           : (mosque.اسم_المسجد && mosque.اسم_المسجد !== 'مسجد بدون اسم') 
                             ? mosque.اسم_المسجد 
                             : `مسجد رقم ${mosque.id}`}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        align="center" 
+                        sx={{ 
+                          mt: isMobile ? 0.5 : 1,
+                          fontSize: isMobile ? '0.8rem' : undefined
+                        }}
+                      >
                         {(mosque.district && mosque.district !== 'الحي غير محدد') 
                           ? mosque.district 
                           : (mosque.الحي && mosque.الحي !== 'الحي غير محدد') 

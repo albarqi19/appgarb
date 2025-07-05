@@ -11,6 +11,7 @@ export interface MemorizationError {
   wordIndex: number;
   word: string;
   ayahIndex: number;
+  surahId: number; // إضافة معرف السورة
 }
 
 export interface MemorizationSession {
@@ -39,6 +40,12 @@ export interface Student {
     surahName: string;
     fromAyah: number;
     toAyah: number;
+    // دعم السور المتعددة
+    isMultipleSurahs?: boolean;
+    startSurah?: string;
+    endSurah?: string;
+    startSurahNumber?: number;
+    endSurahNumber?: number;
   };
   totalScore: number;
   phone?: string;
@@ -73,8 +80,8 @@ export const students: Student[] = [  {
         score: 90,
         totalErrors: 2,
         errors: [
-          { type: 'حفظ', wordIndex: 3, word: 'الرحيم', ayahIndex: 1 },
-          { type: 'تجويد', wordIndex: 2, word: 'العالمين', ayahIndex: 2 }
+          { type: 'حفظ', wordIndex: 3, word: 'الرحيم', ayahIndex: 1, surahId: 2 },
+          { type: 'تجويد', wordIndex: 2, word: 'العالمين', ayahIndex: 2, surahId: 2 }
         ]
       }
     ],
@@ -112,7 +119,7 @@ export const students: Student[] = [  {
         score: 95,
         totalErrors: 1,
         errors: [
-          { type: 'تجويد', wordIndex: 5, word: 'النار', ayahIndex: 12 }
+          { type: 'تجويد', wordIndex: 5, word: 'النار', ayahIndex: 12, surahId: 3 }
         ]
       }
     ],
@@ -150,9 +157,9 @@ export const students: Student[] = [  {
         score: 85,
         totalErrors: 3,
         errors: [
-          { type: 'حفظ', wordIndex: 2, word: 'الرحمن', ayahIndex: 1 },
-          { type: 'نطق', wordIndex: 1, word: 'المستقيم', ayahIndex: 6 },
-          { type: 'تجويد', wordIndex: 3, word: 'عليهم', ayahIndex: 7 }
+          { type: 'حفظ', wordIndex: 2, word: 'الرحمن', ayahIndex: 1, surahId: 1 },
+          { type: 'نطق', wordIndex: 1, word: 'المستقيم', ayahIndex: 6, surahId: 1 },
+          { type: 'تجويد', wordIndex: 3, word: 'عليهم', ayahIndex: 7, surahId: 1 }
         ]
       }
     ],
@@ -190,10 +197,10 @@ export const students: Student[] = [  {
         score: 88,
         totalErrors: 4,
         errors: [
-          { type: 'حفظ', wordIndex: 1, word: 'الحكيم', ayahIndex: 2 },
-          { type: 'تجويد', wordIndex: 2, word: 'المرسلين', ayahIndex: 3 },
-          { type: 'نطق', wordIndex: 1, word: 'مستقيم', ayahIndex: 4 },
-          { type: 'حفظ', wordIndex: 3, word: 'الرحيم', ayahIndex: 5 }
+          { type: 'حفظ', wordIndex: 1, word: 'الحكيم', ayahIndex: 2, surahId: 36 },
+          { type: 'تجويد', wordIndex: 2, word: 'المرسلين', ayahIndex: 3, surahId: 36 },
+          { type: 'نطق', wordIndex: 1, word: 'مستقيم', ayahIndex: 4, surahId: 36 },
+          { type: 'حفظ', wordIndex: 3, word: 'الرحيم', ayahIndex: 5, surahId: 36 }
         ]
       }
     ],
@@ -231,7 +238,7 @@ export const students: Student[] = [  {
         score: 95,
         totalErrors: 1,
         errors: [
-          { type: 'تجويد', wordIndex: 1, word: 'الوسواس', ayahIndex: 4 }
+          { type: 'تجويد', wordIndex: 1, word: 'الوسواس', ayahIndex: 4, surahId: 114 }
         ]
       }
     ],
@@ -241,6 +248,51 @@ export const students: Student[] = [  {
       toAyah: 5
     },
     totalScore: 76,
+    phone: '05XXXXXXXX',
+    parentPhone: '05XXXXXXXX'
+  },
+  {
+    id: '6',
+    name: 'فاطمة أحمد المطيري',
+    age: 11,
+    mosqueId: '1',
+    circleId: '2', // حلقة المغرب - المعلم أحمد محمد العمري
+    level: 'متوسط',
+    attendanceRate: 96,
+    attendance: [
+      { date: '2025-05-25', status: 'حاضر' },
+      { date: '2025-05-24', status: 'حاضر' },
+      { date: '2025-05-23', status: 'حاضر' },
+      { date: '2025-05-22', status: 'حاضر' },
+      { date: '2025-05-21', status: 'حاضر' },
+    ],
+    memorization: [
+      {
+        id: 'm6',
+        date: '2025-05-25',
+        surahName: 'الفاتحة إلى الإخلاص',
+        fromAyah: 1,
+        toAyah: 4,
+        type: 'حفظ',
+        score: 93,
+        totalErrors: 1,
+        errors: [
+          { type: 'تجويد', wordIndex: 2, word: 'أحد', ayahIndex: 1, surahId: 112 }
+        ]
+      }
+    ],
+    currentMemorization: {
+      surahName: 'الفاتحة 1 إلى الإخلاص 4',
+      fromAyah: 1,
+      toAyah: 4,
+      // دعم السور المتعددة
+      isMultipleSurahs: true,
+      startSurah: 'الفاتحة',
+      endSurah: 'الإخلاص',
+      startSurahNumber: 1,
+      endSurahNumber: 112
+    },
+    totalScore: 89,
     phone: '05XXXXXXXX',
     parentPhone: '05XXXXXXXX'
   }
